@@ -6,3 +6,4 @@ servicio/registros.db
 datos/
 .venv/
 venv/
+.claude/settings.local.json

@@ -1,0 +1,20 @@
+# Lo que NO se sube a Cloud Build con `gcloud run deploy --source .`
+# (el contenedor solo necesita Dockerfile, src/, servicio/ y artefactos/produccion/).
+.gcloudignore
+.git
+.gitignore
+.venv/
+venv/
+.pytest_cache/
+**/__pycache__/
+*.pyc
+artefactos/cache_entrenamiento/
+servicio/registros.db
+datos/
+docs/
+tests/
+scripts/
+entrenamiento/
+evidencias/
+tools/
+SPECS.MD
