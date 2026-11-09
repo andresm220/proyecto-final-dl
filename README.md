@@ -3,7 +3,7 @@
 **Monitoreo transaccional del Banco del Altiplano: un ensamble LightGBM + GRU decide, con monitoreo campeón/retador**
 
 Deep Learning y Sistemas Inteligentes 2026 · Universidad del Valle de Guatemala · Kevin Recinos
-**Integrantes:** Andrés Mazariegos (21749) · June Herrera · _[Integrante 3]_
+**Integrantes:** Andrés Mazariegos (21749) · June Herrera
 **Modelo de origen:** [Proyecto 1 — Monitoreo transaccional](https://github.com/UVG-Work/Proyecto-1-Deeplearning/tree/feat/monitoreo-transaccional)
 
 | | |
@@ -56,17 +56,17 @@ monitoreo— si el modelo se mantiene, se reentrena o se promueve al retador.
 
 | Etapa | Fecha | Entregable | Responsable _(confirmar)_ |
 |---|---|---|---|
-| Selección del modelo de origen y revisión del P1 | 8 nov | Decisión: P1 sobre P2 (GAN) y P3 (Text-to-SQL) | Todo el trío |
+| Selección del modelo de origen y revisión del P1 | 8 nov | Decisión: P1 sobre P2 (GAN) y P3 (Text-to-SQL) | Ambos |
 | Hipótesis y criterio de éxito congelados | 8 nov, 20:26 GT | [`docs/HIPOTESIS.md`](docs/HIPOTESIS.md) (SHA-256 en metadata) | Andrés Mazariegos |
 | Reentrenamiento `K = 3` y paquete de producción | 8 nov | `artefactos/produccion/`, `entrenamiento/log_entrenamiento.txt` | June Herrera |
 | Servicio: API, demo, registro y monitoreo | 8 nov | `servicio/` | Andrés Mazariegos |
-| Pruebas de contrato y de paridad | 8 nov | `tests/` (76 pruebas) | _[Integrante 3]_ |
+| Pruebas de contrato y de paridad | 8 nov | `tests/` (76 pruebas) | June Herrera |
 | Hipótesis H3 (ensamble), registrada antes de calcularlo | 8 nov, 21:41 GT | adenda en `docs/HIPOTESIS.md` (commit `c283851`) | Andrés Mazariegos |
-| Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Todo el trío |
-| Despliegue en Google Cloud Run | 9 nov | URL pública | _[Integrante 3]_ |
+| Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Ambos |
+| Despliegue en Google Cloud Run | 9 nov | URL pública | Andrés Mazariegos |
 | Tráfico de prueba y evidencias | 9 nov | `evidencias/`, panel con datos | June Herrera |
-| Presentación al comité | 9 / 13 nov | `docs/presentacion.pdf` | Todo el trío |
-| Ajustes y versión final del repositorio | hasta 15 nov, 23:59 | última versión en GitHub | Todo el trío |
+| Presentación al comité | 9 / 13 nov | `docs/presentacion.pdf` | Ambos |
+| Ajustes y versión final del repositorio | hasta 15 nov, 23:59 | última versión en GitHub | Ambos |
 
 Por qué en este orden: la hipótesis se escribió **antes** de entrenar (el criterio no
 puede moverse después de ver resultados), y la prueba de paridad se escribió **antes**
@@ -482,7 +482,6 @@ _Completar por cada integrante antes de entregar — qué usó y qué verificó 
 
 - **Andrés Mazariegos** — _______
 - **June Herrera** — _______
-- **_[Integrante 3]_** — _______
 
 Cada integrante debe poder explicar cualquier parte del código; la sección de decisiones
 (§6) y la de hipótesis (§5) son las que más probablemente salgan en preguntas.
