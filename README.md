@@ -8,7 +8,7 @@ Deep Learning y Sistemas Inteligentes 2026 · Universidad del Valle de Guatemala
 
 | | |
 |---|---|
-| **Servicio en producción** | `https://<usuario>-monitoreo-transaccional.hf.space` _(completar tras desplegar)_ |
+| **Servicio en producción** | <https://monitoreo-transaccional-837352528666.us-central1.run.app> (Google Cloud Run) |
 | Demo para el analista | `/` |
 | Panel de monitoreo | `/monitor` |
 | Documentación de la API | `/docs` |
@@ -63,7 +63,7 @@ monitoreo— si el modelo se mantiene, se reentrena o se promueve al retador.
 | Pruebas de contrato y de paridad | 8 nov | `tests/` (76 pruebas) | _[Integrante 3]_ |
 | Hipótesis H3 (ensamble), registrada antes de calcularlo | 8 nov, 21:41 GT | adenda en `docs/HIPOTESIS.md` (commit `c283851`) | Andrés Mazariegos |
 | Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Todo el trío |
-| Despliegue en Hugging Face Spaces | 9 nov | URL pública | _[Integrante 3]_ |
+| Despliegue en Google Cloud Run | 9 nov | URL pública | _[Integrante 3]_ |
 | Tráfico de prueba y evidencias | 9 nov | `evidencias/`, panel con datos | June Herrera |
 | Presentación al comité | 9 / 13 nov | `docs/presentacion.pdf` | Todo el trío |
 | Ajustes y versión final del repositorio | hasta 15 nov, 23:59 | última versión en GitHub | Todo el trío |
@@ -99,11 +99,17 @@ demás es irrelevante).
 
 **Sobre el entorno**
 
-- Se sirve en CPU (2 vCPU del plan gratuito de Hugging Face Spaces). No hace falta GPU:
-  el GRU híbrido del ensamble tiene 27,457 parámetros.
-- El almacenamiento del Space gratuito es efímero: el registro de uso (SQLite) se
-  reinicia si el Space se reinicia. Con almacenamiento persistente el servicio usa
-  `/data` automáticamente. Por eso `GET /registros.csv` permite exportar la evidencia.
+- Se sirve en CPU: Google Cloud Run con 2 vCPU y 2 GiB, una sola instancia. No hace
+  falta GPU: el GRU híbrido del ensamble tiene 27,457 parámetros. El plan original era
+  Hugging Face Spaces, pero desde 2026 un Space con Docker en CPU Basic exige cuenta PRO,
+  y las capas gratuitas de 512 MB de otros servicios no alcanzan (cada worker usa
+  ~450 MB). Cloud Run cobra solo mientras atiende solicitudes y la demo cabe en su capa
+  gratuita.
+- El registro de uso (SQLite) es efímero: Cloud Run apaga la instancia tras unos
+  minutos sin tráfico y con ella se borra el registro. La primera solicitud después
+  tarda unos segundos más (arranque en frío). Por eso `GET /registros.csv` permite
+  exportar la evidencia, y el tráfico de prueba se vuelve a correr antes de presentar.
+  Con un disco persistente el servicio usa `/data` automáticamente.
 
 ## 4. Modelo planteado
 
@@ -225,7 +231,7 @@ flowchart LR
     R --> CAL[Calibración isotónica<br/>+ u* por costo en val]
     CAL --> ART[(artefactos/produccion<br/>modelos · scalers · vocab<br/>umbrales · referencia PSI<br/>metadata)]
   end
-  subgraph Servicio["Servicio (Docker · Hugging Face Spaces)"]
+  subgraph Servicio["Servicio (Docker · Google Cloud Run)"]
     API[FastAPI + Uvicorn ×2<br/>POST /predecir] --> INF[inferencia.py<br/>mismas funciones de features]
     ART --> INF
     INF --> CAMP[Campeón E: LightGBM + GRU<br/>decide]
@@ -249,7 +255,7 @@ flowchart LR
 | Registro | SQLite | Sin servidor extra; suficiente para miles de predicciones por hora |
 | Monitoreo | PSI propio + Chart.js (empaquetado local) | Sin dependencias externas en tiempo de ejecución |
 | Contenedor | Docker (`python:3.13-slim`, torch CPU) | Reproducible; la imagen no trae CUDA (~2 GB menos) |
-| Hosting | Hugging Face Spaces (SDK Docker) | Gratuito, URL pública fija, 16 GB de RAM |
+| Hosting | Google Cloud Run (2 vCPU, 2 GiB, 1 instancia) | Corre el mismo Dockerfile sin cambios, URL pública fija y cobro por solicitud (dentro de la capa gratuita). Hugging Face Spaces con Docker ya exige cuenta PRO |
 
 **Decisiones de diseño que vale la pena defender**
 
@@ -275,7 +281,8 @@ flowchart LR
 
 ## 7. Evidencias del pase a producción
 
-**Enlace al servicio:** `https://<usuario>-monitoreo-transaccional.hf.space` _(completar)_
+**Enlace al servicio:** <https://monitoreo-transaccional-837352528666.us-central1.run.app>
+(Google Cloud Run, `us-central1`)
 
 **Pruebas automáticas** — `python -m pytest` → **76 pruebas, todas pasan** (~1 min):
 
@@ -298,19 +305,57 @@ en la configuración de producción (ensamble decidiendo, A en sombra):
 | 4 clientes, 2 procesos (4 corridas) | 300–500 c/u | 0 | 46–54 tx/s | 62–69 / 88–139 ms |
 | 4 clientes, 2 procesos, corrida larga | 2,000 | 0 | 21 tx/s | 160 / 239 ms ❌ |
 
-Dos hallazgos del monitoreo de latencia:
+**Corrida contra producción** (2026-11-09, 22:46 UTC, contra la URL pública desde
+Guatemala; mismas transacciones que la corrida local):
+[`evidencias/corrida_produccion.txt`](evidencias/corrida_produccion.txt) ·
+registros exportados en [`evidencias/registros_produccion.csv`](evidencias/registros_produccion.csv)
 
-1. **Con un solo proceso**, las solicitudes concurrentes hacen fila detrás del GIL de
-   Python: el cálculo de features con pandas no se paraleliza dentro de un proceso. Se
-   pasó a 2 workers de Uvicorn, uno por vCPU.
-2. **Con 2 procesos, el resultado varía entre corridas.** Las conexiones *keep-alive* se
-   quedan con el worker que las aceptó; si las 4 caen en el mismo, se pierde el
-   paralelismo. Eso pasó en la corrida larga. La solución de fondo es un balanceador que
-   reparta por solicitud y no por conexión, o más réplicas. Queda como limitación
-   declarada: el objetivo p95 < 100 ms se cumple con un cliente y en la mayoría de las
-   corridas concurrentes, no en todas.
+| | Local · normal | **Producción · normal** | Local · deriva ×2.5 | **Producción · deriva ×2.5** |
+|---|---:|---:|---:|---:|
+| Comando | `--n 2000 --hilos 4` | `--n 2000 --hilos 4 --semilla 1` | `--n 500 --deriva 2.5` | `--n 500 --hilos 4 --deriva 2.5 --semilla 5` |
+| Transacciones (fraudes) | 2,000 (43) | **2,000 (43)** | 500 (4) | **500 (4)** |
+| Errores | 0 | **0** | 0 | **0** |
+| Rendimiento | 21.3 tx/s | **19.7 tx/s** | 53.8 tx/s | **18.7 tx/s** |
+| Latencia en servidor p50 / p95 | 160 / 239 ms ❌ | **91 / 166 ms ❌** | 62 / 92 ms | **92 / 178 ms ❌** |
+| Latencia ida y vuelta p50 / p95 | 186 / 273 ms | 201 / 292 ms | 70 / 102 ms | 209 / 311 ms |
+| Recall al bloquear — E (decide) / A (sombra) | 100 % / 100 % | **100 % / 100 %** | — | **100 % / 100 %** |
+| Costo realizado — E / A | Q6,120 / Q6,300 | **Q6,120 / Q6,300** | — | **Q2,160 / Q1,980** |
+| PSI del monto | — | 0.003 | 1.02 → alerta | **1.019 → alerta** |
+| PSI del puntaje del ensamble | — | 0.054 | 0.02 | **0.022** |
 
-**Desempeño sobre tráfico etiquetado** (2,000 transacciones normales, 43 fraudes):
+"—": no se registró en esa corrida. La latencia en servidor la mide la propia API y
+no incluye la red; la de ida y vuelta, sí.
+
+Lo que dicen las dos corridas juntas:
+
+1. **Producción decide exactamente lo mismo que local.** Las mismas 2,000 transacciones
+   dieron las mismas decisiones (1,902 aprobadas, 21 a revisión, 77 bloqueadas) y el
+   mismo costo. Es la paridad de `test_paridad.py`, ahora comprobada en el contenedor
+   desplegado.
+2. **En producción no se cumple el objetivo p95 < 100 ms con 4 clientes concurrentes.**
+   El p95 fue de 166 y 178 ms; el p50 se mantuvo en 91–92 ms. Las solicitudes sueltas de
+   la demo tardaron entre 38 y 61 ms en servidor, pero no medimos una corrida de un solo
+   cliente en producción. Localmente ya habíamos visto que la concurrencia es lo que
+   dispara la latencia:
+   - **Con un solo proceso**, las solicitudes concurrentes hacen fila detrás del GIL de
+     Python, porque el cálculo de features con pandas no se paraleliza dentro de un
+     proceso. Por eso se pasó a 2 workers de Uvicorn, uno por vCPU (p95 de 252 a
+     88–139 ms en la mayoría de las corridas locales).
+   - **Con 2 procesos, el resultado varía entre corridas.** Las conexiones *keep-alive*
+     se quedan con el worker que las aceptó; si las 4 caen en el mismo, se pierde el
+     paralelismo. Eso pasó en la corrida local larga (239 ms).
+
+   En Cloud Run el p95 quedó entre esos dos extremos en ambas corridas; no aislamos más
+   la causa. La solución de fondo es repartir por solicitud y no por conexión, o tener
+   más réplicas. Queda como limitación declarada.
+3. **El monitoreo detecta deriva.** Con montos ×2.5, el PSI del monto sube a **1.02 →
+   alerta**, local y en producción, mientras el PSI del puntaje del ensamble se queda en
+   0.02. Lectura: las entradas cambiaron pero el modelo no se desestabilizó, porque sus
+   variables principales son relativas (monto contra la media de 7 días de la tarjeta).
+   Una alerta de entrada no es lo mismo que un modelo roto, y el panel permite
+   distinguirlas.
+
+**Desempeño sobre tráfico etiquetado** (producción; 2,000 transacciones normales, 43 fraudes):
 
 | | Recall al bloquear | Precisión | Falsos positivos | Costo realizado |
 |---|---:|---:|---:|---:|
@@ -318,22 +363,21 @@ Dos hallazgos del monitoreo de latencia:
 | A — LightGBM (sombra) | 100 % | 55.1 % | 35 | Q6,300 |
 | Sin modelo | 0 % | — | 0 | Q180,600 |
 
-En este tramo el ensamble salió Q180 más barato que A, al revés que en prueba. Con 43
-fraudes la diferencia no es significativa en ninguna dirección; es exactamente lo que el
-panel debe seguir acumulando antes de revisar la decisión de `docs/DECISION.md`.
-
-**El monitoreo detecta deriva.** Con 500 transacciones con montos ×2.5, el PSI del
-monto sube a **1.02 → alerta**, mientras el PSI del puntaje del ensamble se queda en
-0.02. Lectura: las entradas cambiaron pero el modelo no se desestabilizó, porque sus
-variables principales son relativas (monto contra la media de 7 días de la tarjeta). Una
-alerta de entrada no es lo mismo que un modelo roto, y el panel permite distinguirlas.
+En el tramo normal el ensamble salió Q180 más barato que A, al revés que en prueba; en
+el tramo con deriva fue al revés (A, Q1,980 contra Q2,160 del ensamble: un falso positivo
+menos). Con 43 y 4 fraudes la diferencia no es significativa en ninguna dirección; es
+exactamente lo que el panel debe seguir acumulando antes de revisar la decisión de
+`docs/DECISION.md`.
 
 | | |
 |---|---|
 | ![Demo](evidencias/demo_sondeo_y_golpe.png) | ![Monitoreo](evidencias/monitor_deriva.png) |
 | Demo: un "sondeo y golpe" real del periodo de prueba, bloqueado por el ensamble; puntaje de cada componente, motivos y retador | Panel filtrado al tráfico con deriva: alerta en monto, puntaje estable |
 
-Registros de uso: `GET /registros.csv` en el servicio desplegado.
+Capturas tomadas del servicio desplegado (`tools/capturas.py <URL>`). Registros de uso:
+`GET /registros.csv` en el servicio; la exportación de la corrida está en
+[`evidencias/registros_produccion.csv`](evidencias/registros_produccion.csv) (2,502
+predicciones: 2,000 normales, 500 con deriva y 2 de la demo).
 
 ---
 
@@ -362,16 +406,22 @@ python -m scripts.simular_trafico --url http://localhost:7860 --n 500 --deriva 2
 docker build -t monitoreo . && docker run -p 7860:7860 monitoreo
 ```
 
-**Desplegar en Hugging Face Spaces.** Crear un Space vacío con SDK *Docker* y luego:
+**Desplegar en Google Cloud Run.** Con `gcloud` autenticado y un proyecto con
+facturación y las APIs `run`, `cloudbuild` y `artifactregistry` habilitadas:
 
 ```bash
-./despliegue/publicar_hf.sh <usuario>/monitoreo-transaccional
+./despliegue/publicar_cloudrun.sh <proyecto-gcp> [region]    # región por defecto: us-central1
 ```
+
+Construye la imagen con el mismo `Dockerfile` en Cloud Build y la despliega con 2 vCPU,
+2 GiB, una sola instancia (un solo registro SQLite) y escala a cero. Con una cuenta PRO
+de Hugging Face, `./despliegue/publicar_hf.sh <usuario>/<space>` publica el mismo
+contenedor en un Space con SDK Docker.
 
 **Ejemplo de llamada a la API**
 
 ```bash
-curl -X POST https://<usuario>-monitoreo-transaccional.hf.space/predecir \
+curl -X POST https://monitoreo-transaccional-837352528666.us-central1.run.app/predecir \
   -H "Content-Type: application/json" \
   -d '{"card_id": 17,
        "historial": [{"ts":"2026-03-28T11:21:00Z","amount":8.55,"merchant_id":169,"mcc":"transporte","channel":"online","country":"GT"},
@@ -393,7 +443,7 @@ artefactos/produccion/ modelos, preprocesadores, umbrales, referencia de monitor
 servicio/              app.py (API), inferencia.py, registro.py, supervision.py, static/ (demo y panel)
 scripts/               escenarios de la demo y simulador de tráfico
 tests/                 contrato de la API, paridad, monitoreo y pruebas heredadas del P1
-despliegue/            script de publicación y README del Space
+despliegue/            scripts de publicación (Cloud Run y Hugging Face) y README del Space
 docs/                  HIPOTESIS.md, DECISION.md y presentacion.pdf
 evidencias/            corrida de tráfico y capturas
 ```
@@ -412,9 +462,12 @@ mismo dataset.
   cuantificada y es reversible con una línea; A en sombra existe para revisarla.
 - **El peso del ensamble (0.5) no se optimizó.** Hacerlo bien exige un conjunto de datos
   que no se haya usado ni para calibrar ni para elegir el umbral.
-- **Latencia variable con 2 workers** (ver §7): falta un balanceo por solicitud.
+- **Latencia sobre el objetivo con tráfico concurrente** (ver §7): en Cloud Run, con 4
+  clientes, el p95 fue de 166–178 ms contra el objetivo de 100 ms. Falta un balanceo
+  por solicitud o más réplicas.
 - **Calibrador y umbral se ajustan ambos en validación** y heredan su optimismo.
-- **Registro efímero** en el plan gratuito; en producción iría a una base administrada.
+- **Registro efímero:** se borra cuando Cloud Run apaga la instancia por inactividad.
+  En producción iría a una base administrada.
 - **Sin autenticación** en `/predecir`: en un banco iría detrás de un gateway con mTLS.
 
 ## Declaración de uso de IA

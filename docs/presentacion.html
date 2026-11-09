@@ -105,7 +105,7 @@ code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.9em; ba
     <div class="col">
       <div class="card"><h3>Datos</h3><p style="font-size:17px">Sintéticos (generador del P1, misma semilla): 419,821 transacciones, 4,000 tarjetas, 1.18 % fraude. Partición <b>temporal</b>. Las etiquetas llegan días después (contracargos).</p></div>
       <div class="card"><h3>Usuario</h3><p style="font-size:17px">El autorizador envía 7 días de historia. Los analistas revisan ≤ 1 % del tráfico. Costos promedio fijos.</p></div>
-      <div class="card"><h3>Entorno</h3><p style="font-size:17px">CPU, 2 vCPU (Hugging Face Spaces gratuito). Registro efímero, exportable a CSV.</p></div>
+      <div class="card"><h3>Entorno</h3><p style="font-size:17px">CPU, 2 vCPU / 2 GiB (Google Cloud Run, escala a cero). Registro efímero, exportable a CSV.</p></div>
     </div>
   </div>
   <div class="n">3</div>
@@ -207,11 +207,11 @@ code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.9em; ba
   </div>
   <div style="text-align:center;font-size:26px;color:var(--muted);margin:6px 0">↓</div>
   <div class="flow">
-    <div class="box" style="flex:1.4"><b>Servicio · Docker en Hugging Face Spaces</b>FastAPI + Uvicorn (2 procesos) · <code>POST /predecir</code> · <b>ensamble decide</b>, LightGBM en sombra · puntaje por componente + motivos SHAP · validación de entradas (422)</div><div class="arr">→</div>
+    <div class="box" style="flex:1.4"><b>Servicio · Docker en Google Cloud Run</b>FastAPI + Uvicorn (2 procesos) · <code>POST /predecir</code> · <strong>ensamble decide</strong>, LightGBM en sombra · puntaje por componente + motivos SHAP · validación de entradas (422)</div><div class="arr">→</div>
     <div class="box"><b>Registro</b>SQLite: cada predicción + etiqueta que llega después (<code>/retroalimentacion</code>)</div><div class="arr">→</div>
     <div class="box"><b>Monitoreo</b><code>/monitor</code>: latencia, PSI de puntaje y entradas en ventana móvil, costo real de campeón vs. retador</div>
   </div>
-  <div class="row" style="margin-top:22px;flex:0">
+  <div class="row" style="margin-top:22px;flex:none">
     <div class="card" style="flex:1"><p style="font-size:17px"><b>Clave del diseño:</b> el servicio <b>no reimplementa ninguna feature</b>. Arma un mini-DataFrame con la historia + la transacción y llama a las <i>mismas</i> funciones del entrenamiento.</p></div>
     <div class="card" style="flex:1"><p style="font-size:17px">Keras 3 (torch) · LightGBM · FastAPI · Pydantic · SQLite · Chart.js local · Docker <code>python:3.13-slim</code> + torch CPU</p></div>
   </div>
@@ -248,7 +248,7 @@ code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.9em; ba
       <div class="card"><h3>Lo que ve el analista</h3><p style="font-size:17px">Varias compras pequeñas en línea en 20 minutos (Q8, Q28, Q29, Q85…) y, una hora después, Q2,509 en una gasolinera. Riesgo 58 % → <b>Bloquear</b>.</p></div>
       <div class="card"><h3>Por qué</h3><p style="font-size:17px">LightGBM 0.989 y GRU 0.987: ambas mitades lo ven. Monto 28× su media de 7 días · 3 transacciones en la última hora.</p></div>
       <div class="card"><h3>LightGBM en sombra</h3><p style="font-size:17px">53 % → también bloquearía.</p></div>
-      <p class="mut" style="font-size:15px">URL: <i>&lt;usuario&gt;-monitoreo-transaccional.hf.space</i> · <code>/docs</code> para la API</p>
+      <p class="mut" style="font-size:15px">URL: <i>monitoreo-transaccional-837352528666<wbr>.us-central1.run.app</i> · <code>/docs</code> para la API</p>
     </div>
   </div>
   <div class="n">9</div>
@@ -262,13 +262,13 @@ code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.9em; ba
     <div class="col" style="flex:1.1"><img class="cap" src="../evidencias/monitor_deriva.png" style="height:520px"></div>
     <div class="col">
       <table style="font-size:15.5px">
-        <tr><th>2,000 tx · 43 fraudes</th><th class="r">Recall</th><th class="r">Costo</th></tr>
+        <tr><th>2,000 tx · 43 fraudes · producción</th><th class="r">Recall</th><th class="r">Costo</th></tr>
         <tr><td>E — ensamble (decide)</td><td class="r">100 %</td><td class="r"><b>Q6,120</b></td></tr>
         <tr><td>A — LightGBM (sombra)</td><td class="r">100 %</td><td class="r">Q6,300</td></tr>
         <tr><td class="mut">Sin modelo</td><td class="r mut">0 %</td><td class="r mut">Q180,600</td></tr>
       </table>
-      <div class="card" style="padding:14px 16px"><h3>1 · Latencia</h3><p style="font-size:15.5px">1 proceso: p95 = 252 ms <span class="pill bad" style="font-size:13px">❌</span> (GIL). 2 procesos: 46–54 tx/s, p95 88–139 ms, salvo una corrida en que las conexiones cayeron en un solo worker (239 ms).</p></div>
-      <div class="card" style="padding:14px 16px"><h3>2 · Deriva (montos ×2.5)</h3><p style="font-size:15.5px">PSI del monto = <b>1.02 → alerta</b>; PSI del puntaje = 0.02. Las entradas cambiaron, el modelo no: usa montos <i>relativos</i>. Alerta de entrada ≠ modelo roto.</p></div>
+      <div class="card" style="padding:14px 16px"><h3>1 · Latencia</h3><p style="font-size:15.5px">Local: 1 proceso p95 = 252 ms (GIL); 2 procesos p95 88–139 ms, salvo una corrida (239 ms). <b>Cloud Run, 4 clientes: p50 91 ms, p95 166–178 ms</b> <span class="pill bad" style="font-size:13px">❌ &gt; 100 ms</span></p></div>
+      <div class="card" style="padding:14px 16px"><h3>2 · Deriva (montos ×2.5)</h3><p style="font-size:15.5px">PSI del monto = <b>1.02 → alerta</b> (local y en producción); PSI del puntaje = 0.02. Las entradas cambiaron, el modelo no: usa montos <i>relativos</i>. Alerta de entrada ≠ modelo roto.</p></div>
     </div>
   </div>
   <div class="n">10</div>
@@ -293,7 +293,7 @@ code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.9em; ba
         <li>El ensamble decide por decisión de negocio, no por la regla (−Q4,560/mes).</li>
         <li>Calibrador y umbral heredan el optimismo de validación.</li>
         <li>Costos fijos: en la realidad un FN escala con el monto.</li>
-        <li>Latencia variable con 2 workers; registro efímero; sin autenticación.</li></ul></div>
+        <li>p95 &gt; 100 ms con tráfico concurrente; registro efímero; sin autenticación.</li></ul></div>
       <div class="card acc" style="border-color:transparent"><h3 style="color:var(--acc)">Siguiente iteración</h3>
         <p style="font-size:17px">Elegir el peso del ensamble con un conjunto de datos nuevo, que no se haya usado para calibrar ni para fijar el umbral.</p></div>
     </div>
