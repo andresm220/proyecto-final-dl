@@ -1,0 +1,46 @@
+# Corrida de evidencia contra producción — 2026-11-09T22:46:16Z
+# URL: https://monitoreo-transaccional-837352528666.us-central1.run.app
+# Google Cloud Run, us-central1 · 2 vCPU / 2 GiB · 1 instancia · 2 workers de Uvicorn
+# PROMOVER_RETADOR=1: decide el ensamble E, LightGBM (A) en sombra. Cliente: Windows, Guatemala.
+
+## a) Tráfico normal — inicio 2026-11-09T22:46:16Z
+## python -m scripts.simular_trafico --url https://monitoreo-transaccional-837352528666.us-central1.run.app --n 2000 --hilos 4 --semilla 1
+Regenerando datos del periodo de prueba…
+2000 transacciones desde 2026-03-24 16:39:05 (43 fraudes reales)
+
+2000 OK, 0 errores  en 101.6 s (19.7 tx/s)
+Latencia en servidor   p50 91 ms · p95 166 ms
+Latencia ida y vuelta  p50 201 ms · p95 292 ms
+Decisiones: {'allow': 1902, 'review': 21, 'block': 77}
+
+Enviando etiquetas (contracargos)…
+2000 etiquetas enviadas. Ver https://monitoreo-transaccional-837352528666.us-central1.run.app/monitor
+
+Monitoreo (GET /metricas, solo este origen, todas las predicciones): 2000 predicciones, 2000 etiquetadas
+  Latencia en servidor (registro)  p50 91 ms · p95 166 ms · máx 358 ms
+  E — ensamble (decide)    recall 100.0 % · precisión 55.8 % · TP 43 · FP 34 · FN 0 · costo Q6,120
+  A — LightGBM (sombra)    recall 100.0 % · precisión 55.1 % · TP 43 · FP 35 · FN 0 · costo Q6,300
+  Sin modelo: costo Q180,600
+  PSI: puntaje_campeon 0.054 (ok) · puntaje_retador 0.095 (ok) · monto 0.003 (ok) · canal 0.000 (ok)
+  Alertas: [vigilar] Latencia p95 = 166 ms (objetivo < 100 ms)
+
+## b) Deriva simulada (montos ×2.5) — inicio 2026-11-09T22:52:58Z
+## python -m scripts.simular_trafico --url https://monitoreo-transaccional-837352528666.us-central1.run.app --n 500 --hilos 4 --deriva 2.5 --semilla 5
+Regenerando datos del periodo de prueba…
+500 transacciones desde 2026-03-27 13:40:06 (4 fraudes reales)
+
+500 OK, 0 errores  en 26.8 s (18.7 tx/s)
+Latencia en servidor   p50 92 ms · p95 178 ms
+Latencia ida y vuelta  p50 209 ms · p95 311 ms
+Decisiones: {'allow': 482, 'review': 2, 'block': 16}
+
+Enviando etiquetas (contracargos)…
+500 etiquetas enviadas. Ver https://monitoreo-transaccional-837352528666.us-central1.run.app/monitor
+
+Monitoreo (GET /metricas, solo este origen, todas las predicciones): 500 predicciones, 500 etiquetadas
+  Latencia en servidor (registro)  p50 92 ms · p95 178 ms · máx 228 ms
+  E — ensamble (decide)    recall 100.0 % · precisión 25.0 % · TP 4 · FP 12 · FN 0 · costo Q2,160
+  A — LightGBM (sombra)    recall 100.0 % · precisión 26.7 % · TP 4 · FP 11 · FN 0 · costo Q1,980
+  Sin modelo: costo Q16,800
+  PSI: puntaje_campeon 0.022 (ok) · puntaje_retador 0.046 (ok) · monto 1.019 (alerta) · canal 0.007 (ok)
+  Alertas: [alerta] Deriva en monto: PSI = 1.019; [vigilar] Latencia p95 = 178 ms (objetivo < 100 ms)

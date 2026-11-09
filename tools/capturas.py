@@ -1,14 +1,18 @@
 """Capturas de pantalla del servicio para el README y la presentación.
 
     python tools/capturas.py [URL]     (por defecto http://localhost:7860)
+
+Navegador: CHROME_PATH=<ruta a chrome> para usar un Chrome instalado; si no se define,
+usa el Chromium de playwright (`playwright install chromium`).
 """
+import os
 import sys
 from playwright.sync_api import sync_playwright
 
 B = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://localhost:7860"
 D = "evidencias/"
 with sync_playwright() as p:
-    b = p.chromium.launch(executable_path="/usr/bin/google-chrome")
+    b = p.chromium.launch(executable_path=os.environ.get("CHROME_PATH") or None)
     pg = b.new_page(viewport={"width": 1360, "height": 900}, device_scale_factor=1.5)
     pg.set_default_timeout(20000)
     pg.goto(B + "/"); pg.wait_for_selector(".escenario")
