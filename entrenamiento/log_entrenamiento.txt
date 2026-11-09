@@ -1,22 +1,26 @@
-[20:28:57] Hipótesis congeladas: sha256=09fed22d6ba8…  inicio=2026-11-09T02:28:57+00:00
-[20:28:57] Modo dev: False  tarjetas=4000  K=3
-[20:29:31] Datos: 419,821 eventos, train/val/test = 293,874/62,973/62,974
-[20:29:49] A (LightGBM) AUC-PR val por semilla: [0.8317, 0.8312, 0.8357]
-[20:31:05] B_K3 semilla 7: AUC-PR val = 0.7490 (75 s)
-[20:32:42] C_K3 semilla 7: AUC-PR val = 0.7746 (97 s)
-[20:33:29] B_K3 semilla 13: AUC-PR val = 0.7449 (47 s)
-[20:34:49] C_K3 semilla 13: AUC-PR val = 0.7858 (80 s)
-[20:35:51] B_K3 semilla 29: AUC-PR val = 0.7433 (61 s)
-[20:38:26] C_K3 semilla 29: AUC-PR val = 0.7857 (155 s)
-[20:38:26] H1 (B_K3 > B_K20): mejora +0.0319 → ÉXITO
-[20:38:26] H2 (C_K3 ≥ A):     dif -0.0509 → NO
-[20:38:26] Campeón: A   Retador (sombra): C_K3
-[20:38:26] campeon=A semilla 29: u*=0.0160  revisión desde 0.0023  costo val Q257,760
-[20:38:26] retador=C_K3 semilla 13: u*=0.0390  revisión desde 0.0212  costo val Q408,780
-[20:38:28] Permutación (validación):
+[21:43:46] Hipótesis congeladas: sha256=319d31a28b92…  inicio=2026-11-09T03:43:46+00:00
+[21:43:46] Modo dev: False  tarjetas=4000  K=3
+[21:44:19] Datos: 419,821 eventos, train/val/test = 293,874/62,973/62,974
+[21:44:38] A (LightGBM) AUC-PR val por semilla: [0.8317, 0.8312, 0.8357]
+[21:44:41] B_K3 semilla 7: AUC-PR val = 0.7490 (cache)
+[21:44:42] C_K3 semilla 7: AUC-PR val = 0.7746 (cache)
+[21:44:42] B_K3 semilla 13: AUC-PR val = 0.7449 (cache)
+[21:44:43] C_K3 semilla 13: AUC-PR val = 0.7858 (cache)
+[21:44:43] B_K3 semilla 29: AUC-PR val = 0.7433 (cache)
+[21:44:43] C_K3 semilla 29: AUC-PR val = 0.7857 (cache)
+[21:44:43] H1 (B_K3 > B_K20): mejora +0.0319 → ÉXITO
+[21:44:43] H2 (C_K3 ≥ A):     dif -0.0509 → NO
+[21:44:44] E (A7 + C_K3 7): AUC-PR val = 0.8325  costo val E Q281,520 vs A Q274,800
+[21:44:44] E (A13 + C_K3 13): AUC-PR val = 0.8387  costo val E Q273,900 vs A Q279,120
+[21:44:44] E (A29 + C_K3 29): AUC-PR val = 0.8380  costo val E Q289,740 vs A Q257,760
+[21:44:44] H3 (E no peor que A): dif +0.0035, costo medio Q281,720 vs Q270,560 → NO
+[21:44:44] Campeón: A   Retador (sombra): E
+[21:44:44] campeon=A semilla 29: u*=0.0160  revisión desde 0.0023  costo val Q257,760
+[21:44:44] retador=E semilla 13: u*=0.0220  revisión desde 0.0091  costo val Q273,900
+[21:44:46] Permutación del C_K3 del ensamble (validación):
 variante  auc_pr_B  auc_pr_A  caida_B
-original  0.785764  0.835726 0.000000
-    full  0.660927  0.835726 0.124836
- history  0.760933  0.835726 0.024831
-[20:38:29] TEST (fecha 2026-11-09T02:38:28+00:00): {"A": {"auc_pr": 0.8568, "costo_Q": 261420.0}, "C_K3": {"auc_pr": 0.7894, "costo_Q": 364800.0}}
-[20:38:29] Listo en 9.5 min → /home/claude/proyecto-final/artefactos/produccion
+original  0.785764  0.831185 0.000000
+    full  0.660927  0.831185 0.124836
+ history  0.760933  0.831185 0.024831
+[21:44:47] TEST (fecha 2026-11-09T03:44:46+00:00): {"A": {"auc_pr": 0.8568, "costo_Q": 261420.0}, "E": {"auc_pr": 0.8529, "costo_Q": 263460.0}}
+[21:44:47] Listo en 1.0 min → /home/claude/proyecto-final/artefactos/produccion

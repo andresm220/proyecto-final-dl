@@ -57,18 +57,27 @@ NOMBRES_FEATURES = {
 }
 
 
+# Peso de A en el ensamble E (docs/HIPOTESIS.md, adenda H3). Fijo, no ajustado.
+PESO_A = 0.5
+
+
 @dataclass
 class ModeloServido:
+    """Un modelo servido: uno o varios componentes + su calibrador y sus umbrales.
+
+    A y C_K3 tienen un solo componente. El ensamble E tiene dos (A y C_K3) y su
+    puntaje crudo es el promedio de ambos; después se calibra como cualquier otro.
+    """
     rol: str
     familia: str
-    modelo: object
+    componentes: dict  # {"A": LGBMClassifier, "C_K3": keras.Model, ...}
     calibrador: object
     u_estrella: float
     u_revision: float
 
     @property
-    def es_secuencial(self) -> bool:
-        return self.familia != "A"
+    def tiene_a(self) -> bool:
+        return "A" in self.componentes
 
 
 class Puntuador:
@@ -91,14 +100,16 @@ class Puntuador:
 
         self.modelos: dict[str, ModeloServido] = {}
         for rol, info in self.meta["roles"].items():
-            ruta = directorio / info["archivo"]
-            if info["familia"] == "A":
-                with open(ruta, "rb") as f:
-                    modelo = pickle.load(f)
-            else:
-                modelo = keras.models.load_model(ruta)
+            archivos = info.get("archivos") or {info["familia"]: info["archivo"]}
+            componentes = {}
+            for fam, archivo in archivos.items():
+                if fam == "A":
+                    with open(directorio / archivo, "rb") as f:
+                        componentes[fam] = pickle.load(f)
+                else:
+                    componentes[fam] = keras.models.load_model(directorio / archivo)
             self.modelos[rol] = ModeloServido(
-                rol=rol, familia=info["familia"], modelo=modelo,
+                rol=rol, familia=info["familia"], componentes=componentes,
                 calibrador=pre["calibradores"][rol],
                 u_estrella=float(info["u_estrella"]), u_revision=float(info["u_revision"]),
             )
@@ -125,8 +136,8 @@ class Puntuador:
         except ImportError:
             pass
         for m in self.modelos.values():
-            if not m.es_secuencial and hasattr(m.modelo, "set_params"):
-                m.modelo.set_params(n_jobs=1)
+            if m.tiene_a:
+                m.componentes["A"].set_params(n_jobs=1)
         # Calentamiento: la primera inferencia de Keras/torch compila y tarda más.
         self._calentar()
 
@@ -171,14 +182,20 @@ class Puntuador:
 
     # ------------------------------------------------------------------ modelos
 
-    def _puntaje_crudo(self, m: ModeloServido, f: dict) -> float:
-        if not m.es_secuencial:
-            return float(m.modelo.predict_proba(f["x_a"])[0, 1])
+    def _componente(self, fam: str, modelo, f: dict) -> float:
+        if fam == "A":
+            return float(modelo.predict_proba(f["x_a"])[0, 1])
         entradas = dict(f["seq"])
-        if m.familia.startswith("C"):
+        if fam.startswith("C"):
             entradas["agg"] = self.scaler_agregados.transform(f["x_a"]).astype("float32")
-        salida = m.modelo(entradas, training=False)
+        salida = modelo(entradas, training=False)
         return float(keras.ops.convert_to_numpy(salida).ravel()[0])
+
+    def _puntaje_crudo(self, m: ModeloServido, f: dict) -> tuple[float, dict]:
+        partes = {fam: self._componente(fam, mod, f) for fam, mod in m.componentes.items()}
+        if len(partes) == 1:
+            return next(iter(partes.values())), partes
+        return PESO_A * partes["A"] + (1 - PESO_A) * partes["C_K3"], partes
 
     @staticmethod
     def _decidir(m: ModeloServido, p: float) -> str:
@@ -189,10 +206,14 @@ class Puntuador:
         return "allow"
 
     def _motivos(self, m: ModeloServido, f: dict, n: int = 3) -> list[dict]:
-        """Contribuciones SHAP de LightGBM (log-odds): por qué subió o bajó el riesgo."""
-        if m.es_secuencial:
+        """Contribuciones SHAP del componente LightGBM (log-odds).
+
+        En el ensamble explican la mitad A del puntaje; la mitad del GRU se reporta
+        aparte como su propio puntaje (`componentes` en la respuesta).
+        """
+        if not m.tiene_a:
             return []
-        contrib = m.modelo.predict(f["x_a"], pred_contrib=True)[0][:-1]
+        contrib = m.componentes["A"].predict(f["x_a"], pred_contrib=True)[0][:-1]
         columnas = list(f["X_A"].columns)
         valores = f["x_a"][0]
         orden = np.argsort(-np.abs(contrib))
@@ -219,10 +240,11 @@ class Puntuador:
         f = self._features(df)
         salida = {}
         for rol, m in self.modelos.items():
-            crudo = self._puntaje_crudo(m, f)
+            crudo, partes = self._puntaje_crudo(m, f)
             p = float(cal.aplicar(m.calibrador, np.array([crudo]))[0])
             salida[rol] = {
                 "familia": m.familia, "score_crudo": crudo, "risk_score": p,
+                "componentes": partes,
                 "decision": self._decidir(m, p),
                 "umbral_bloqueo": m.u_estrella, "umbral_revision": m.u_revision,
             }

@@ -1,6 +1,6 @@
 # Proyecto Final — Un modelo de Deep Learning en producción
 
-**Monitoreo transaccional del Banco del Altiplano: API de riesgo con campeón y retador**
+**Monitoreo transaccional del Banco del Altiplano: un ensamble LightGBM + GRU decide, con monitoreo campeón/retador**
 
 Deep Learning y Sistemas Inteligentes 2026 · Universidad del Valle de Guatemala · Kevin Recinos
 **Integrantes:** Andrés Mazariegos (21749) · June Herrera · _[Integrante 3]_
@@ -16,10 +16,13 @@ Deep Learning y Sistemas Inteligentes 2026 · Universidad del Valle de Guatemala
 
 > **En una línea.** Un servicio web recibe la transacción que se está autorizando más
 > la historia de 7 días de la tarjeta, devuelve probabilidad calibrada de fraude y la
-> decisión **bloquear / revisar / aprobar** con un umbral de mínimo costo. El modelo de
-> Deep Learning (GRU híbrido, `K = 3`) puntúa en **modo sombra** junto al campeón
-> LightGBM, y el panel de monitoreo compara a los dos sobre tráfico real para que el
-> comité decida si promoverlo.
+> decisión **bloquear / revisar / aprobar** con un umbral de mínimo costo. Decide un
+> **ensamble**: la mitad del puntaje viene de un **GRU** (Deep Learning, lee el orden de
+> las últimas 3 transacciones) y la otra mitad de LightGBM (agregados). LightGBM solo
+> corre en **modo sombra**, y el panel compara a los dos sobre tráfico real. Por la regla
+> técnica que fijamos antes de entrenar, LightGBM solo era marginalmente más barato; promover el
+> ensamble fue una decisión de negocio declarada y cuantificada en
+> [`docs/DECISION.md`](docs/DECISION.md).
 
 ---
 
@@ -42,8 +45,8 @@ en milisegundos, sin saber todavía si la transacción es fraude.
 
 | Puntaje calibrado `p` | Acción | Quién actúa |
 |---|---|---|
-| `p ≥ u*` (1.6 %) | **Bloquear** y notificar al tarjetahabiente | automático |
-| `u_rev ≤ p < u*` (0.23 %–1.6 %) | **Revisar**: se autoriza, pero entra a la cola del analista | analista |
+| `p ≥ u*` (2.2 %) | **Bloquear** y notificar al tarjetahabiente | automático |
+| `u_rev ≤ p < u*` (0.91 %–2.2 %) | **Revisar**: se autoriza, pero entra a la cola del analista | analista |
 | `p < u_rev` | **Aprobar** | automático |
 
 Un tercer usuario es **el comité técnico y de negocio**, que decide —con el panel de
@@ -57,7 +60,9 @@ monitoreo— si el modelo se mantiene, se reentrena o se promueve al retador.
 | Hipótesis y criterio de éxito congelados | 8 nov, 20:26 GT | [`docs/HIPOTESIS.md`](docs/HIPOTESIS.md) (SHA-256 en metadata) | Andrés Mazariegos |
 | Reentrenamiento `K = 3` y paquete de producción | 8 nov | `artefactos/produccion/`, `entrenamiento/log_entrenamiento.txt` | June Herrera |
 | Servicio: API, demo, registro y monitoreo | 8 nov | `servicio/` | Andrés Mazariegos |
-| Pruebas de contrato y de paridad | 8 nov | `tests/` (75 pruebas) | _[Integrante 3]_ |
+| Pruebas de contrato y de paridad | 8 nov | `tests/` (76 pruebas) | _[Integrante 3]_ |
+| Hipótesis H3 (ensamble), registrada antes de calcularlo | 8 nov, 21:41 GT | adenda en `docs/HIPOTESIS.md` (commit `c283851`) | Andrés Mazariegos |
+| Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Todo el trío |
 | Despliegue en Hugging Face Spaces | 9 nov | URL pública | _[Integrante 3]_ |
 | Tráfico de prueba y evidencias | 9 nov | `evidencias/`, panel con datos | June Herrera |
 | Presentación al comité | 9 / 13 nov | `docs/presentacion.pdf` | Todo el trío |
@@ -95,7 +100,7 @@ demás es irrelevante).
 **Sobre el entorno**
 
 - Se sirve en CPU (2 vCPU del plan gratuito de Hugging Face Spaces). No hace falta GPU:
-  el retador (GRU híbrido, `K = 3`) tiene 27,457 parámetros.
+  el GRU híbrido del ensamble tiene 27,457 parámetros.
 - El almacenamiento del Space gratuito es efímero: el registro de uso (SQLite) se
   reinicia si el Space se reinicia. Con almacenamiento persistente el servicio usa
   `/data` automáticamente. Por eso `GET /registros.csv` permite exportar la evidencia.
@@ -114,13 +119,22 @@ features de evento del Modelo B, ventanas, calibración isotónica y umbral por 
 **Arquitectura servida**
 
 ```
-Retador — C_K3: GRU híbrido (Deep Learning)
-  últimas 3 transacciones ─► [7 numéricas + emb(mcc,8) + emb(canal,4) + emb(comercio,16)]
-                          ─► GRU(64, con máscara) ─► Dropout(0.3) ─┐
-  30 agregados causales (escalados) ─────────────────────────────┴► Concat ─► Dense(32) ─► sigmoide
+Campeón — E: ensamble   puntaje = 0.5 · crudo(A) + 0.5 · crudo(C_K3)  →  calibración isotónica  →  u* = 2.2 %
 
-Campeón — A: LightGBM sobre los 30 agregados causales (sin orden)
+  Componente C_K3: GRU híbrido (Deep Learning)
+    últimas 3 transacciones ─► [7 numéricas + emb(mcc,8) + emb(canal,4) + emb(comercio,16)]
+                            ─► GRU(64, con máscara) ─► Dropout(0.3) ─┐
+    30 agregados causales (escalados) ─────────────────────────────┴► Concat ─► Dense(32) ─► sigmoide
+
+  Componente A: LightGBM sobre los 30 agregados causales (sin orden)
+
+Retador en sombra — A: el mismo LightGBM, solo (con su propio calibrador y u* = 1.6 %)
 ```
+
+**Por qué un ensamble.** A no puede leer el orden de las transacciones (sus agregados
+son invariantes a la permutación) y C_K3 sí lo usa. Si sus errores no coinciden, el
+promedio corrige parte de los errores de cada uno. El peso 0.5 se fijó **antes** de
+calcular nada: buscarlo en validación y medir en validación inflaría el resultado.
 
 **El cambio, justificado.** Uno solo: **`K = 20 → 3`**. La curva de recorte de historia
 del P1 (su propia prueba de falsificación) mostró que con `K = 20` el GRU estaba en su
@@ -133,9 +147,10 @@ partición, semillas e hiperparámetros para poder atribuir cualquier cambio a `
 ## 5. Validación de hipótesis
 
 Las hipótesis, métricas y criterios se escribieron **antes de entrenar** en
-[`docs/HIPOTESIS.md`](docs/HIPOTESIS.md) (registrado 2026-11-09 02:26 UTC; el
-entrenamiento empezó a las 02:28 UTC y guardó el SHA-256 del archivo,
-`09fed22d…`, en `artefactos/produccion/metadata.json`).
+[`docs/HIPOTESIS.md`](docs/HIPOTESIS.md): H1 y H2 a las 02:26 UTC, antes de entrenar
+cualquier modelo; H3 (ensamble) a las 03:41 UTC, antes de calcular cualquier puntaje del
+ensamble, en un commit propio (`c283851`). El entrenamiento guarda el SHA-256 del
+archivo (`319d31a2…`) en `artefactos/produccion/metadata.json`.
 
 **Métrica:** AUC-PR de validación, media de 3 semillas `(7, 13, 29)`. AUC-PR y no
 exactitud: con 1.2 % de fraude, un modelo que nunca bloquea tiene 98.8 % de exactitud.
@@ -147,11 +162,13 @@ exactitud: con 1.2 % de fraude, un modelo que nunca bloquea tiene 98.8 % de exac
 | **B — GRU, `K = 3`** | 0.7490 | 0.7449 | 0.7433 | **0.7457 ± 0.0024** |
 | C — híbrido, `K = 20` (P1) | | | | 0.6939 ± 0.0311 |
 | **C — híbrido, `K = 3`** | 0.7746 | 0.7858 | 0.7857 | **0.7820 ± 0.0052** |
+| **E — ensamble 0.5·A + 0.5·C_K3** (pares de igual semilla) | 0.8325 | 0.8387 | 0.8380 | **0.8364 ± 0.0028** |
 
 | Hipótesis | Criterio (definido antes) | Resultado | Veredicto |
 |---|---|---|---|
 | **H1** — el GRU con `K = 3` supera al de `K = 20` | mejora media ≥ 0.03 **y** peor semilla > 0.7138 | +0.0319; peor semilla 0.7433 | ✅ **Se cumple** |
 | **H2** — el híbrido `K = 3` iguala a LightGBM | `media(C_K3) ≥ media(A) − 0.005` | −0.0509 | ❌ **No se cumple** |
+| **H3** — el ensamble no es peor que A | AUC-PR ≥ A **y** costo en `u*` ≤ A (medias) | AUC-PR +0.0035; costo Q281,720 vs. Q270,560 | ❌ **No se cumple** (falla el costo) |
 
 **Lo que dicen los resultados.** H1 se cumple por poco en la media, pero el efecto
 grande está en la **estabilidad**: la desviación entre semillas cae de 0.068 a 0.002.
@@ -165,22 +182,32 @@ la ventana completa hace caer su AUC-PR de 0.786 a 0.661; barajar solo la histor
 la parte del orden que aporta está más en la posición de la transacción actual que en
 la de las previas.
 
-**Regla de decisión para producción (congelada) → campeón A, retador C_K3.** Ningún
-secuencial superó a A por más de 0.005, así que A decide y el mejor secuencial (C_K3)
-se despliega en modo sombra.
+**Regla técnica (congelada) → campeón A, retador E.** E ordena mejor (AUC-PR) pero, en
+su umbral óptimo, cuesta más en validación; como H3 exigía ambas cosas, por la regla
+decide A. Los artefactos reflejan exactamente eso.
+
+**Decisión de negocio → se promueve E.** Con A como campeón, el modelo de Deep Learning
+no participaría en ninguna decisión. En prueba, E cuesta **Q4,560 más al mes** que A: el
+0.08 % del ahorro mensual que da cualquiera de los dos. Asumimos ese costo de forma
+explícita, documentada en [`docs/DECISION.md`](docs/DECISION.md) e implementada como una
+sola línea del Dockerfile (`PROMOVER_RETADOR=1`). Quitarla devuelve el servicio a la
+regla técnica sin reentrenar. A queda en sombra precisamente para que el panel diga, con
+tráfico real, si la decisión se sostiene.
 
 **Prueba, evaluada una sola vez** (2026-11-09 02:38 UTC, con todo congelado; 13.4 días,
 62,974 transacciones, 703 fraudes):
 
 | | AUC-PR | Recall al bloquear | Precisión | Costo en prueba | Ahorro mensual vs. sin modelo |
 |---|---:|---:|---:|---:|---:|
-| **A — campeón** | **0.857** | 97.7 % | 38.9 % | **Q261,420** | **Q6.02 M** |
-| C_K3 — retador | 0.789 | 94.2 % | 38.2 % | Q364,800 | Q5.79 M |
+| **E — ensamble (decide)** | 0.853 | 97.6 % | 39.1 % | Q263,460 | **Q6.01 M** |
+| A — LightGBM (sombra) | 0.857 | 97.7 % | 38.9 % | Q261,420 | Q6.02 M |
+| C_K3 — GRU híbrido solo | 0.789 | 94.2 % | 38.2 % | Q364,800 | Q5.79 M |
 | Sin modelo (aprobar todo) | — | 0 % | — | Q2,952,600 | — |
 
-Desglose por mecanismo de fraude (recall al bloquear, A / C_K3): sondeo y golpe 100 % /
-100 %; sondeos previos 95 % / 87 %; ráfaga en cajero 100 % / 99 %; monto atípico 98 % /
-97 %.
+Desglose por mecanismo de fraude (recall al bloquear, E / A): sondeo y golpe 100 % /
+100 %; sondeos previos 94.8 % / 95.2 %; ráfaga en cajero 100 % / 100 %; monto atípico
+97.8 % / 97.8 %. El GRU solo (C_K3) se evaluó en prueba en la primera corrida, cuando era
+el retador; su fila se conserva como referencia.
 
 ## 6. Herramientas y arquitectura
 
@@ -193,15 +220,17 @@ flowchart LR
     P --> F[Features del P1<br/>agregados + eventos + ventanas K=3]
     F --> MA[LightGBM ×3 semillas]
     F --> MC[GRU / híbrido ×3 semillas]
-    MA & MC --> R{Regla congelada<br/>docs/HIPOTESIS.md}
+    MA & MC --> EN[Ensamble E<br/>0.5·A + 0.5·C_K3]
+    MA & EN --> R{Regla congelada<br/>docs/HIPOTESIS.md}
     R --> CAL[Calibración isotónica<br/>+ u* por costo en val]
     CAL --> ART[(artefactos/produccion<br/>modelos · scalers · vocab<br/>umbrales · referencia PSI<br/>metadata)]
   end
   subgraph Servicio["Servicio (Docker · Hugging Face Spaces)"]
     API[FastAPI + Uvicorn ×2<br/>POST /predecir] --> INF[inferencia.py<br/>mismas funciones de features]
     ART --> INF
-    INF --> CAMP[Campeón A<br/>decide]
-    INF --> RET[Retador C_K3<br/>sombra]
+    INF --> CAMP[Campeón E: LightGBM + GRU<br/>decide]
+    INF --> RET[Retador A: LightGBM<br/>sombra]
+    DEC[docs/DECISION.md<br/>PROMOVER_RETADOR=1] -.-> INF
     API --> DB[(SQLite<br/>predicciones + etiquetas)]
   end
   subgraph Monitoreo
@@ -230,64 +259,79 @@ flowchart LR
    prueba (15 fraudes), que el puntaje del servicio coincide con el del pipeline por
    lotes con diferencia < 1e-5 en ambos modelos. Esta prueba atrapó un bug real antes
    de desplegar: timestamps con y sin microsegundos se parseaban mal.
-2. **Campeón / retador en sombra.** Promover un modelo sin compararlo en tráfico real es
+2. **Campeón / retador en sombra.** Cambiar de modelo sin compararlo en tráfico real es
    apostar. El retador ve exactamente lo mismo que el campeón y su decisión se registra
-   pero no se ejecuta. Si el comité decide promoverlo, basta reiniciar con
-   `PROMOVER_RETADOR=1`: cada modelo conserva su calibrador y sus umbrales.
+   pero no se ejecuta. Los roles se intercambian con `PROMOVER_RETADOR=1`, sin
+   reentrenar: cada modelo conserva su calibrador y sus umbrales. Así se implementó la
+   decisión de promover el ensamble, y así se revierte si el panel la contradice.
 3. **Monitoreo en tres preguntas.** ¿Funciona? (volumen, latencia p95). ¿Cambió el mundo?
    (PSI del puntaje, del monto y del canal contra validación, en ventana móvil). ¿Sigue
    acertando? (recall, precisión y costo realizado de campeón y retador sobre las
    transacciones cuya etiqueta ya llegó).
-4. **Explicabilidad para el analista.** Para el campeón se devuelven las 3 variables con
-   mayor contribución SHAP (LightGBM `pred_contrib`), en lenguaje de negocio.
+4. **Explicabilidad para el analista.** Se devuelven las 3 variables con mayor
+   contribución SHAP del componente LightGBM (`pred_contrib`), en lenguaje de negocio,
+   y el puntaje de cada componente del ensamble, para ver si el riesgo lo empujó el GRU
+   (orden) o los agregados.
 
 ## 7. Evidencias del pase a producción
 
 **Enlace al servicio:** `https://<usuario>-monitoreo-transaccional.hf.space` _(completar)_
 
-**Pruebas automáticas** — `python -m pytest` → **75 pruebas, todas pasan** (~1 min):
+**Pruebas automáticas** — `python -m pytest` → **76 pruebas, todas pasan** (~1 min):
 
 | Archivo | Qué garantiza |
 |---|---|
-| `test_paridad.py` | El servicio reproduce el puntaje del entrenamiento; recortar historia vieja no cambia nada |
-| `test_api.py` | Contrato: respuestas válidas, decisión coherente con umbrales, rechazo (422) de canal/rubro/monto/fecha inválidos y de transacciones anteriores a su historia, retroalimentación, exportación |
+| `test_paridad.py` | El servicio reproduce el puntaje del entrenamiento para A y para el ensamble (componente por componente); recortar historia vieja no cambia nada |
+| `test_api.py` | Contrato: respuestas válidas, decisión coherente con umbrales, rechazo (422) de canal/rubro/monto/fecha inválidos y de transacciones anteriores a su historia, retroalimentación, exportación, y que `PROMOVER_RETADOR=1` intercambie roles |
 | `test_supervision.py` | El PSI calla con tráfico estable y alerta con montos inflados o una mezcla de canales nueva |
 | `test_features_*`, `test_ventanas`, `test_particion`, `test_economia`, `test_calibracion`, `test_metricas` | Heredadas del P1: causalidad de features, sin fuga, umbral por costo |
 
 **Tráfico de prueba** (`scripts/simular_trafico.py` reproduce transacciones consecutivas
-del periodo de prueba, como las mandaría el autorizador, y luego sus etiquetas):
+del periodo de prueba, como las mandaría el autorizador, y luego sus etiquetas). Servidor
+en la configuración de producción (ensamble decidiendo, A en sombra):
 [`evidencias/corrida_local.txt`](evidencias/corrida_local.txt)
 
 | Corrida | Transacciones | Errores | Rendimiento | Latencia en servidor p50 / p95 |
 |---|---:|---:|---:|---:|
-| 1 cliente | 400 | 0 | 24 tx/s | 36 / 47 ms |
-| 4 clientes, 1 proceso | 1,500 | 0 | 20 tx/s | 168 / 252 ms ❌ |
-| 4 clientes, 2 procesos | 2,000 | 0 | 45 tx/s | 62 / 139 ms |
-| 4 clientes, 2 procesos, deriva ×2.5 | 500 | 0 | 51 tx/s | 64 / 95 ms |
+| 1 cliente | 400 | 0 | 24 tx/s | 37 / 47 ms |
+| 4 clientes, 1 proceso (antes del ajuste) | 1,500 | 0 | 20 tx/s | 168 / 252 ms ❌ |
+| 4 clientes, 2 procesos (4 corridas) | 300–500 c/u | 0 | 46–54 tx/s | 62–69 / 88–139 ms |
+| 4 clientes, 2 procesos, corrida larga | 2,000 | 0 | 21 tx/s | 160 / 239 ms ❌ |
 
-La fila marcada ❌ es un hallazgo del monitoreo: con un solo proceso, las solicitudes
-concurrentes hacen fila detrás del GIL de Python (el cálculo de features con pandas no
-se paraleliza dentro de un proceso). Se resolvió con 2 workers de Uvicorn, uno por vCPU.
+Dos hallazgos del monitoreo de latencia:
+
+1. **Con un solo proceso**, las solicitudes concurrentes hacen fila detrás del GIL de
+   Python: el cálculo de features con pandas no se paraleliza dentro de un proceso. Se
+   pasó a 2 workers de Uvicorn, uno por vCPU.
+2. **Con 2 procesos, el resultado varía entre corridas.** Las conexiones *keep-alive* se
+   quedan con el worker que las aceptó; si las 4 caen en el mismo, se pierde el
+   paralelismo. Eso pasó en la corrida larga. La solución de fondo es un balanceador que
+   reparta por solicitud y no por conexión, o más réplicas. Queda como limitación
+   declarada: el objetivo p95 < 100 ms se cumple con un cliente y en la mayoría de las
+   corridas concurrentes, no en todas.
 
 **Desempeño sobre tráfico etiquetado** (2,000 transacciones normales, 43 fraudes):
 
 | | Recall al bloquear | Precisión | Falsos positivos | Costo realizado |
 |---|---:|---:|---:|---:|
-| Campeón A | 100 % | 55.1 % | 35 | **Q6,300** |
-| Retador C_K3 | 97.7 % | 57.5 % | 31 | Q9,780 |
+| **E — ensamble (decide)** | 100 % | 55.8 % | 34 | **Q6,120** |
+| A — LightGBM (sombra) | 100 % | 55.1 % | 35 | Q6,300 |
 | Sin modelo | 0 % | — | 0 | Q180,600 |
 
+En este tramo el ensamble salió Q180 más barato que A, al revés que en prueba. Con 43
+fraudes la diferencia no es significativa en ninguna dirección; es exactamente lo que el
+panel debe seguir acumulando antes de revisar la decisión de `docs/DECISION.md`.
+
 **El monitoreo detecta deriva.** Con 500 transacciones con montos ×2.5, el PSI del
-monto sube a **1.02 → alerta**, mientras el PSI del puntaje del campeón se queda en
-0.05. Lectura: las entradas cambiaron pero el modelo no se desestabilizó, porque sus
-variables principales son relativas (monto contra la media de 7 días de la tarjeta).
-*Una alerta de entrada no es lo mismo que un modelo roto*, y el panel permite
-distinguirlas.
+monto sube a **1.02 → alerta**, mientras el PSI del puntaje del ensamble se queda en
+0.02. Lectura: las entradas cambiaron pero el modelo no se desestabilizó, porque sus
+variables principales son relativas (monto contra la media de 7 días de la tarjeta). Una
+alerta de entrada no es lo mismo que un modelo roto, y el panel permite distinguirlas.
 
 | | |
 |---|---|
-| ![Demo](evidencias/demo_sondeo_y_golpe.png) | ![Monitoreo](evidencias/monitor_deriva_ultimas500.png) |
-| Demo: un "sondeo y golpe" real del periodo de prueba, bloqueado; motivos y retador | Panel: alerta de deriva en monto, campeón vs. retador |
+| ![Demo](evidencias/demo_sondeo_y_golpe.png) | ![Monitoreo](evidencias/monitor_deriva.png) |
+| Demo: un "sondeo y golpe" real del periodo de prueba, bloqueado por el ensamble; puntaje de cada componente, motivos y retador | Panel filtrado al tráfico con deriva: alerta en monto, puntaje estable |
 
 Registros de uso: `GET /registros.csv` en el servicio desplegado.
 
@@ -299,15 +343,16 @@ Registros de uso: `GET /registros.csv` en el servicio desplegado.
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 1. Pruebas (75, ~1 min)
+# 1. Pruebas (76, ~1 min)
 python -m pytest
 
 # 2. Entrenar el paquete de producción (~10 min en CPU; reproduce las cifras de §5)
 python -m entrenamiento.entrenar
 #    modo rápido para probar el pipeline: MONITOREO_DEV=1 python -m entrenamiento.entrenar
 
-# 3. Servir localmente
-uvicorn servicio.app:app --port 7860 --workers 2       # abrir http://localhost:7860
+# 3. Servir localmente (igual que producción: decide el ensamble)
+PROMOVER_RETADOR=1 uvicorn servicio.app:app --port 7860 --workers 2   # abrir http://localhost:7860
+#    sin PROMOVER_RETADOR se sirve la configuración de la regla técnica (decide A)
 
 # 4. Mandar tráfico real del periodo de prueba (y, opcional, deriva)
 python -m scripts.simular_trafico --url http://localhost:7860 --n 2000 --hilos 4
@@ -334,9 +379,10 @@ curl -X POST https://<usuario>-monitoreo-transaccional.hf.space/predecir \
        "transaccion": {"ts":"2026-03-28T12:42:12Z","amount":2508.78,"merchant_id":263,"mcc":"combustible","channel":"POS","country":"GT"}}'
 ```
 
-Respuesta (abreviada): `{"risk_score": 0.53, "decision": "block", "umbral_bloqueo": 0.016,
-"motivos": [...], "retador": {"familia": "C_K3", "risk_score": 0.32, "decision": "block"},
-"model_version": "20261109-A-vs-C_K3", "latencia_ms": 38}`
+Respuesta (abreviada): `{"risk_score": 0.58, "decision": "block", "umbral_bloqueo": 0.022,
+"componentes": {"A": 0.989, "C_K3": 0.987}, "motivos": [...],
+"retador": {"familia": "A", "risk_score": 0.53, "decision": "block"},
+"model_version": "20261109-A-vs-E+promovido", "latencia_ms": 46}`
 
 **Estructura**
 
@@ -348,7 +394,7 @@ servicio/              app.py (API), inferencia.py, registro.py, supervision.py,
 scripts/               escenarios de la demo y simulador de tráfico
 tests/                 contrato de la API, paridad, monitoreo y pruebas heredadas del P1
 despliegue/            script de publicación y README del Space
-docs/                  HIPOTESIS.md y presentacion.pdf
+docs/                  HIPOTESIS.md, DECISION.md y presentacion.pdf
 evidencias/            corrida de tráfico y capturas
 ```
 
@@ -361,10 +407,12 @@ mismo dataset.
 
 - **Datos sintéticos.** Antes de una decisión real hay que repetir el experimento con el
   flujo del banco (`card_id` + `ts`).
-- **El campeón no es el modelo de Deep Learning.** Es el resultado honesto de la regla
-  congelada; el GRU está en producción en sombra, que es como se introduce un modelo
-  nuevo en un sistema de riesgo. La siguiente iteración natural es un **ensamble**
-  (promedio de puntajes calibrados de A y C_K3) validado con el mismo protocolo.
+- **El ensamble decide por decisión de negocio, no por la regla técnica.** Por la regla
+  congelada (H3) ganaba LightGBM por Q4,560/mes en prueba. La decisión está declarada,
+  cuantificada y es reversible con una línea; A en sombra existe para revisarla.
+- **El peso del ensamble (0.5) no se optimizó.** Hacerlo bien exige un conjunto de datos
+  que no se haya usado ni para calibrar ni para elegir el umbral.
+- **Latencia variable con 2 workers** (ver §7): falta un balanceo por solicitud.
 - **Calibrador y umbral se ajustan ambos en validación** y heredan su optimismo.
 - **Registro efímero** en el plan gratuito; en producción iría a una base administrada.
 - **Sin autenticación** en `/predecir`: en un banco iría detrás de un gateway con mTLS.
@@ -372,7 +420,7 @@ mismo dataset.
 ## Declaración de uso de IA
 
 Se usó **Claude (Anthropic)** como asistente de programación para: revisar el código del
-Proyecto 1 y proponer qué llevar a producción; redactar el script de entrenamiento, el
+Proyecto 1 y proponer qué llevar a producción; proponer el ensamble y redactar su hipótesis; redactar el script de entrenamiento, el
 servicio (API, inferencia, registro, monitoreo), la interfaz web, las pruebas, el
 simulador de tráfico, el Dockerfile y el borrador de este README y de la presentación.
 Las hipótesis y la regla de decisión se discutieron y fijaron antes de entrenar.

@@ -52,6 +52,9 @@ P1_A_MEDIA = 0.8328582732704707
 # debe mandar a la cola más del 1 % del tráfico. Supuesto de negocio, ver README §3.
 CAPACIDAD_REVISION = 0.01
 
+# Ensamble (adenda H3 de docs/HIPOTESIS.md): peso fijo, no se ajusta en validación.
+PESO_A = 0.5
+
 
 def _sha256(ruta: Path) -> str:
     return hashlib.sha256(ruta.read_bytes()).hexdigest()
@@ -145,30 +148,68 @@ def main() -> None:
     _log(f"H1 (B_K3 > B_K20): mejora {h1_mejora:+.4f} → {'ÉXITO' if h1['exito'] else 'NO'}")
     _log(f"H2 (C_K3 ≥ A):     dif {h2['diferencia_vs_A']:+.4f} → {'ÉXITO' if h2['exito'] else 'NO'}")
 
-    # ------------------------------------------------------------ regla de decisión
-    secuenciales = sorted(("B_K3", "C_K3"), key=lambda k: medias[k], reverse=True)
-    mejor_seq = secuenciales[0]
-    if medias[mejor_seq] > medias["A"] + 0.005:
-        campeon, retador = mejor_seq, "A"
-    else:
-        campeon, retador = "A", mejor_seq
+    # ------------------------------------------------------------ H3: ensamble
+    # Pares con la misma semilla. Peso fijo 0.5 sobre puntajes CRUDOS (docs/HIPOTESIS.md,
+    # adenda): nada del ensamble se ajusta mirando validación, salvo su calibración y u*.
+    def costo_en_ustar(p_val):
+        p_cal = cal.aplicar(cal.ajustar(p_val, y[va]), p_val)
+        return eco.umbral_optimo(y[va], p_cal)[1]
+
+    pval_e, res_e, costo_e, costo_a = [], [], [], []
+    for i, s in enumerate(cfg.SEEDS_MODELO):
+        pe = PESO_A * ra["p_val"][s] + (1 - PESO_A) * pval["C_K3"][i]
+        pval_e.append(pe)
+        res_e.append(met.auc_pr(y[va], pe))
+        costo_e.append(costo_en_ustar(pe))
+        costo_a.append(costo_en_ustar(ra["p_val"][s]))
+        _log(f"E (A{s} + C_K3 {s}): AUC-PR val = {res_e[-1]:.4f}  "
+             f"costo val E Q{costo_e[-1]:,.0f} vs A Q{costo_a[-1]:,.0f}")
+    medias["E"], desv["E"] = float(np.mean(res_e)), float(np.std(res_e))
+    h3 = {"diferencia_vs_A": medias["E"] - medias["A"],
+          "costo_val_medio_E": float(np.mean(costo_e)),
+          "costo_val_medio_A": float(np.mean(costo_a)),
+          "exito": bool(medias["E"] >= medias["A"]
+                        and np.mean(costo_e) <= np.mean(costo_a))}
+    _log(f"H3 (E no peor que A): dif {h3['diferencia_vs_A']:+.4f}, costo medio "
+         f"Q{h3['costo_val_medio_E']:,.0f} vs Q{h3['costo_val_medio_A']:,.0f} "
+         f"→ {'ÉXITO' if h3['exito'] else 'NO'}")
+
+    # ------------------------------------------------------------ regla de decisión (adenda)
+    campeon, retador = ("E", "A") if h3["exito"] else ("A", "E")
     _log(f"Campeón: {campeon}   Retador (sombra): {retador}")
 
-    # mejor semilla de cada familia servida
     def mejor(fam):
+        """Componentes, puntajes de validación y semilla del mejor de cada familia."""
         if fam == "A":
             i = int(np.argmax(ra["gbm"]))
-            return ra["modelos_gbm"][i], ra["p_val"][cfg.SEEDS_MODELO[i]], cfg.SEEDS_MODELO[i]
+            s = cfg.SEEDS_MODELO[i]
+            return {"A": ra["modelos_gbm"][i]}, ra["p_val"][s], s
+        if fam == "E":
+            i = int(np.argmax(res_e))
+            return ({"A": ra["modelos_gbm"][i], "C_K3": modelos["C_K3"][i]},
+                    pval_e[i], cfg.SEEDS_MODELO[i])
         i = int(np.argmax(res[fam]))
-        return modelos[fam][i], pval[fam][i], cfg.SEEDS_MODELO[i]
+        return {fam: modelos[fam][i]}, pval[fam][i], cfg.SEEDS_MODELO[i]
+
+    def crudo(comp: dict, sel: np.ndarray) -> np.ndarray:
+        """Puntaje crudo de un modelo (simple o ensamble) sobre un subconjunto."""
+        partes = {}
+        if "A" in comp:
+            partes["A"] = comp["A"].predict_proba(d["X_A"].to_numpy()[sel])[:, 1]
+        for fam in ("B_K3", "C_K3"):
+            if fam in comp:
+                partes[fam] = ex.predecir_split(comp[fam], d, sel, hibrido=fam.startswith("C"))
+        if len(partes) == 1:
+            return next(iter(partes.values()))
+        return PESO_A * partes["A"] + (1 - PESO_A) * partes["C_K3"]
 
     servidos = {}
     for rol, fam in (("campeon", campeon), ("retador", retador)):
-        m, p_val, s = mejor(fam)
+        comp, p_val, s = mejor(fam)
         calib = cal.ajustar(p_val, y[va])
         p_cal = cal.aplicar(calib, p_val)
         u, costo_val = eco.umbral_optimo(y[va], p_cal)
-        servidos[rol] = {"familia": fam, "modelo": m, "semilla": s, "p_val": p_val,
+        servidos[rol] = {"familia": fam, "componentes": comp, "semilla": s, "p_val": p_val,
                          "calibrador": calib, "u_estrella": u, "costo_val": costo_val,
                          "u_revision": _banda_revision(p_cal, u),
                          "auc_pr_val": met.auc_pr(y[va], p_val)}
@@ -176,22 +217,18 @@ def main() -> None:
              f"{servidos[rol]['u_revision']:.4f}  costo val Q{costo_val:,.0f}")
 
     # ------------------------------------------------------------ permutación
-    fam_seq = campeon if campeon != "A" else retador
-    rol_seq = "campeon" if campeon != "A" else "retador"
-    p_a_val = mejor("A")[1]
-    tabla_perm = ex.tabla_permutacion(servidos[rol_seq]["modelo"], d, p_a_val,
-                                      hibrido=fam_seq.startswith("C"))
-    _log("Permutación (validación):\n" + tabla_perm.to_string(index=False))
+    # Sobre el C_K3 que integra el ensamble: es la parte que lee el orden.
+    _, _, s_e = mejor("E")
+    c_perm = modelos["C_K3"][cfg.SEEDS_MODELO.index(s_e)]
+    tabla_perm = ex.tabla_permutacion(c_perm, d, ra["p_val"][s_e], hibrido=True)
+    _log("Permutación del C_K3 del ensamble (validación):\n" + tabla_perm.to_string(index=False))
 
     # ------------------------------------------------------------ test, una vez
     fecha_test = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     dias_test = (d["df"]["ts"][te].max() - d["df"]["ts"][te].min()).total_seconds() / 86400
     resultados_test = {}
     for rol, s in servidos.items():
-        if s["familia"] == "A":
-            p_te = s["modelo"].predict_proba(d["X_A"].to_numpy()[te])[:, 1]
-        else:
-            p_te = ex.predecir_split(s["modelo"], d, te, hibrido=s["familia"].startswith("C"))
+        p_te = crudo(s["componentes"], te)
         p_te_cal = cal.aplicar(s["calibrador"], p_te)
         u = s["u_estrella"]
         resultados_test[s["familia"]] = {
@@ -216,13 +253,17 @@ def main() -> None:
         shutil.rmtree(SALIDA)
     SALIDA.mkdir(parents=True)
     for rol, s in servidos.items():
-        if s["familia"] == "A":
-            with open(SALIDA / f"{rol}_lightgbm.pkl", "wb") as f:
-                pickle.dump(s["modelo"], f)
-            s["archivo"] = f"{rol}_lightgbm.pkl"
-        else:
-            s["modelo"].save(SALIDA / f"{rol}_{s['familia']}.keras")
-            s["archivo"] = f"{rol}_{s['familia']}.keras"
+        s["archivos"] = {}
+        for fam, m in s["componentes"].items():
+            if fam == "A":
+                nombre = f"{rol}_{s['familia']}_A.pkl" if s["familia"] != "A" else f"{rol}_A.pkl"
+                with open(SALIDA / nombre, "wb") as f:
+                    pickle.dump(m, f)
+            else:
+                nombre = (f"{rol}_{s['familia']}_{fam}.keras" if s["familia"] != fam
+                          else f"{rol}_{fam}.keras")
+                m.save(SALIDA / nombre)
+            s["archivos"][fam] = nombre
     with open(SALIDA / "preprocesadores.pkl", "wb") as f:
         pickle.dump({"scaler_eventos": d["scaler"], "scaler_agregados": d["esc_agg"],
                      "calibradores": {rol: s["calibrador"] for rol, s in servidos.items()}}, f)
@@ -244,15 +285,18 @@ def main() -> None:
         "costos": {"FN": cfg.COSTO_FN, "FP": cfg.COSTO_FP},
         "capacidad_revision": CAPACIDAD_REVISION,
         "validacion": {
-            "auc_pr_por_semilla": {"A": ra["gbm"], "B_K3": res["B_K3"], "C_K3": res["C_K3"]},
+            "auc_pr_por_semilla": {"A": ra["gbm"], "B_K3": res["B_K3"], "C_K3": res["C_K3"],
+                                   "E": res_e},
             "media": medias, "desviacion": desv,
             "referencia_P1": {"A": P1_A_MEDIA, "B_K20": P1_B_K20_MEDIA},
         },
-        "hipotesis": {"H1": h1, "H2": h2},
-        "roles": {rol: {k: s[k] for k in ("familia", "semilla", "archivo", "u_estrella",
+        "hipotesis": {"H1": h1, "H2": h2, "H3": h3},
+        "ensamble": {"peso_A": PESO_A, "peso_C_K3": 1 - PESO_A,
+                     "definicion": "PESO_A * crudo(A) + (1 - PESO_A) * crudo(C_K3)"},
+        "roles": {rol: {k: s[k] for k in ("familia", "semilla", "archivos", "u_estrella",
                                           "u_revision", "costo_val", "auc_pr_val")}
                   for rol, s in servidos.items()},
-        "permutacion_val": {"modelo": fam_seq,
+        "permutacion_val": {"modelo": f"C_K3 semilla {s_e} (componente del ensamble)",
                             "tabla": tabla_perm.to_dict(orient="records")},
         "test": resultados_test,
         "test_info": {"dias": dias_test, "n": int(te.sum()), "n_fraude": int(y[te].sum()),

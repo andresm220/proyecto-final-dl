@@ -111,6 +111,8 @@ class ResultadoModelo(BaseModel):
     familia: str
     risk_score: float
     decision: Literal["allow", "review", "block"]
+    componentes: dict[str, float] = Field(
+        default_factory=dict, description="Puntaje crudo de cada componente del modelo.")
 
 
 class Respuesta(BaseModel):
@@ -121,6 +123,9 @@ class Respuesta(BaseModel):
     umbral_revision: float
     model_version: str
     motivos: list[dict]
+    componentes: dict[str, float] = Field(
+        ..., description="Puntaje crudo de cada componente del campeón (en el ensamble: "
+                         "LightGBM y GRU, que se promedian antes de calibrar).")
     retador: ResultadoModelo
     n_historia_usada: int
     latencia_ms: float
@@ -142,6 +147,7 @@ def panel():
 def salud():
     p = ESTADO["puntuador"]
     return {"estado": "ok", "model_version": p.version, "desde": ESTADO["inicio"],
+            "promovido_por_decision_del_equipo": p.promovido,
             "campeon": p.modelos["campeon"].familia, "retador": p.modelos["retador"].familia}
 
 
@@ -181,9 +187,9 @@ def predecir(sol: Solicitud, x_origen: str | None = Header(default=None)):
     return Respuesta(
         id=id_, risk_score=c["risk_score"], decision=c["decision"],
         umbral_bloqueo=c["umbral_bloqueo"], umbral_revision=c["umbral_revision"],
-        model_version=p.version, motivos=r["motivos"],
+        model_version=p.version, motivos=r["motivos"], componentes=c["componentes"],
         retador=ResultadoModelo(familia=ret["familia"], risk_score=ret["risk_score"],
-                                decision=ret["decision"]),
+                                decision=ret["decision"], componentes=ret["componentes"]),
         n_historia_usada=r["n_historia_usada"], latencia_ms=r["latencia_ms"],
     )
 

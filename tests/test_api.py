@@ -81,3 +81,18 @@ def test_escenarios_y_paginas(cliente):
 
 def test_borrar_registros_requiere_token(cliente):
     assert cliente.delete("/registros").status_code == 403
+
+
+def test_promocion_del_retador_intercambia_roles(monkeypatch):
+    """PROMOVER_RETADOR=1 (configuración del Dockerfile) hace que E decida y A quede en sombra."""
+    from servicio.inferencia import Puntuador
+    normal = Puntuador()
+    monkeypatch.setenv("PROMOVER_RETADOR", "1")
+    promovido = Puntuador()
+    assert promovido.promovido and promovido.version.endswith("+promovido")
+    assert promovido.modelos["campeon"].familia == normal.modelos["retador"].familia
+    assert promovido.modelos["retador"].familia == normal.modelos["campeon"].familia
+    r = promovido.puntuar(HIST, TX)
+    if len(promovido.modelos["campeon"].componentes) > 1:
+        assert set(r["campeon"]["componentes"]) == {"A", "C_K3"}
+        assert r["motivos"], "el ensamble explica su componente LightGBM"

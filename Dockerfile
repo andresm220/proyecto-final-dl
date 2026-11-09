@@ -20,6 +20,11 @@ COPY --chown=user artefactos/produccion/ artefactos/produccion/
 
 USER user
 ENV KERAS_BACKEND=torch PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
+# Decisión del equipo (docs/DECISION.md): por la regla técnica congelada el campeón es
+# LightGBM (A) y el ensamble A + GRU (E) es el retador. Se promueve E para que el modelo
+# de Deep Learning participe en la decisión, con su costo cuantificado. Quitar esta
+# línea devuelve el servicio a la configuración de la regla, sin reentrenar.
+ENV PROMOVER_RETADOR=1
 EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD python -c "import urllib.request;urllib.request.urlopen('http://localhost:7860/salud')"
 CMD ["uvicorn", "servicio.app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "2"]

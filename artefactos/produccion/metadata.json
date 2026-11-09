@@ -1,8 +1,8 @@
 {
-  "version_modelo": "20261109-A-vs-C_K3",
-  "hipotesis_sha256": "09fed22d6ba8a130c4a653d792725c8ed9862a7a77fec4600a193ef06d8d17a7",
-  "inicio_entrenamiento": "2026-11-09T02:28:57+00:00",
-  "fecha_evaluacion_test": "2026-11-09T02:38:28+00:00",
+  "version_modelo": "20261109-A-vs-E",
+  "hipotesis_sha256": "319d31a28b921db761edca3374c0adebb0410cf3e695af5a5fa9820d36ead039",
+  "inicio_entrenamiento": "2026-11-09T03:43:46+00:00",
+  "fecha_evaluacion_test": "2026-11-09T03:44:46+00:00",
   "dev_mode": false,
   "K": 3,
   "costos": {
@@ -26,17 +26,24 @@
         0.7745796240694356,
         0.785763727126352,
         0.7856541635820555
+      ],
+      "E": [
+        0.8324541327675538,
+        0.8386819597228837,
+        0.8379666505966988
       ]
     },
     "media": {
       "A": 0.8328582732704707,
       "B_K3": 0.7457272328075061,
-      "C_K3": 0.7819991715926143
+      "C_K3": 0.7819991715926143,
+      "E": 0.8363675810290454
     },
     "desviacion": {
       "A": 0.00203745961500624,
       "B_K3": 0.002395005426543676,
-      "C_K3": 0.005246603036193421
+      "C_K3": 0.005246603036193421,
+      "E": 0.002782591688579799
     },
     "referencia_P1": {
       "A": 0.8328582732704707,
@@ -52,47 +59,63 @@
     "H2": {
       "diferencia_vs_A": -0.050859101677856344,
       "exito": false
+    },
+    "H3": {
+      "diferencia_vs_A": 0.00350930775857472,
+      "costo_val_medio_E": 281720.0,
+      "costo_val_medio_A": 270560.0,
+      "exito": false
     }
+  },
+  "ensamble": {
+    "peso_A": 0.5,
+    "peso_C_K3": 0.5,
+    "definicion": "PESO_A * crudo(A) + (1 - PESO_A) * crudo(C_K3)"
   },
   "roles": {
     "campeon": {
       "familia": "A",
       "semilla": 29,
-      "archivo": "campeon_lightgbm.pkl",
+      "archivos": {
+        "A": "campeon_A.pkl"
+      },
       "u_estrella": 0.016016016016016016,
       "u_revision": 0.002257336343115124,
       "costo_val": 257760.0,
       "auc_pr_val": 0.835726358152239
     },
     "retador": {
-      "familia": "C_K3",
+      "familia": "E",
       "semilla": 13,
-      "archivo": "retador_C_K3.keras",
-      "u_estrella": 0.03903903903903904,
-      "u_revision": 0.02120141342756184,
-      "costo_val": 408780.0,
-      "auc_pr_val": 0.785763727126352
+      "archivos": {
+        "A": "retador_E_A.pkl",
+        "C_K3": "retador_E_C_K3.keras"
+      },
+      "u_estrella": 0.022022022022022022,
+      "u_revision": 0.00909090909090909,
+      "costo_val": 273900.0,
+      "auc_pr_val": 0.8386819597228837
     }
   },
   "permutacion_val": {
-    "modelo": "C_K3",
+    "modelo": "C_K3 semilla 13 (componente del ensamble)",
     "tabla": [
       {
         "variante": "original",
         "auc_pr_B": 0.785763727126352,
-        "auc_pr_A": 0.835726358152239,
+        "auc_pr_A": 0.831184586598692,
         "caida_B": 0.0
       },
       {
         "variante": "full",
         "auc_pr_B": 0.6609274957503652,
-        "auc_pr_A": 0.835726358152239,
+        "auc_pr_A": 0.831184586598692,
         "caida_B": 0.12483623137598676
       },
       {
         "variante": "history",
         "auc_pr_B": 0.760932541943716,
-        "auc_pr_A": 0.835726358152239,
+        "auc_pr_A": 0.831184586598692,
         "caida_B": 0.02483118518263605
       }
     ]
@@ -144,51 +167,51 @@
       "tasa_revision": 0.019849461682599167,
       "ahorro_mensual_vs_sin_modelo_Q": 6018085.266449026
     },
-    "C_K3": {
-      "auc_pr": 0.7893801761770087,
-      "costo_Q": 364800.0,
+    "E": {
+      "auc_pr": 0.852942590748179,
+      "costo_Q": 263460.0,
       "en_umbral": {
-        "precision": 0.38221709006928406,
-        "recall": 0.9416785206258891,
-        "f1": 0.5437371663244353,
-        "tp": 662,
-        "fp": 1070,
-        "fn": 41,
-        "tn": 61201
+        "precision": 0.39132915002852253,
+        "recall": 0.9758179231863442,
+        "f1": 0.5586319218241041,
+        "tp": 686,
+        "fp": 1067,
+        "fn": 17,
+        "tn": 61204
       },
       "por_tipo": [
         {
           "grupo": "f1_golpe",
           "n": 62328,
           "n_fraude": 57,
-          "auc_pr": 0.42982069904795506,
+          "auc_pr": 0.5484184438532318,
           "recall": 1.0
         },
         {
           "grupo": "f1_sondeo",
           "n": 62521,
           "n_fraude": 250,
-          "auc_pr": 0.230067308101305,
-          "recall": 0.868
+          "auc_pr": 0.3183420953701655,
+          "recall": 0.948
         },
         {
           "grupo": "f2",
           "n": 62482,
           "n_fraude": 211,
-          "auc_pr": 0.8757184651230817,
-          "recall": 0.990521327014218
+          "auc_pr": 0.9348217390832047,
+          "recall": 1.0
         },
         {
           "grupo": "f3",
           "n": 62456,
           "n_fraude": 185,
-          "auc_pr": 0.7653106207690543,
-          "recall": 0.9675675675675676
+          "auc_pr": 0.8295902320819042,
+          "recall": 0.9783783783783784
         }
       ],
-      "tasa_bloqueo": 0.027503414107409408,
-      "tasa_revision": 0.013386476958744878,
-      "ahorro_mensual_vs_sin_modelo_Q": 5786904.277126312
+      "tasa_bloqueo": 0.027836885063677073,
+      "tasa_revision": 0.009337186775494648,
+      "ahorro_mensual_vs_sin_modelo_Q": 6013523.366485606
     }
   },
   "test_info": {
@@ -208,5 +231,5 @@
     "lightgbm": "4.7.0",
     "keras_backend": "torch"
   },
-  "duracion_min": 9.53610577583313
+  "duracion_min": 1.0215082089106242
 }

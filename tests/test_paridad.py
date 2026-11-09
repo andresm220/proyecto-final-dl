@@ -15,7 +15,7 @@ from monitoreo import features_evento as fe
 from monitoreo import modelos_b as mb
 from monitoreo import ventanas as ven
 from scripts.datos_prueba import cargar, solicitud
-from servicio.inferencia import Puntuador
+from servicio.inferencia import PESO_A, Puntuador
 
 pytestmark = pytest.mark.lento
 
@@ -36,13 +36,17 @@ def entorno():
     win, mask = ven.construir(df, p.K)
     lotes = {}
     for rol, m in p.modelos.items():
-        if not m.es_secuencial:
-            lotes[rol] = m.modelo.predict_proba(X_A.to_numpy()[muestra])[:, 1]
-        else:
-            agg = (p.scaler_agregados.transform(X_A.to_numpy()[muestra]).astype("float32")
-                   if m.familia.startswith("C") else None)
-            lotes[rol] = mb.predecir(m.modelo, mb.Lotes(win[muestra], mask[muestra],
+        partes = {}
+        for fam, mod in m.componentes.items():
+            if fam == "A":
+                partes[fam] = mod.predict_proba(X_A.to_numpy()[muestra])[:, 1]
+            else:
+                agg = (p.scaler_agregados.transform(X_A.to_numpy()[muestra]).astype("float32")
+                       if fam.startswith("C") else None)
+                partes[fam] = mb.predecir(mod, mb.Lotes(win[muestra], mask[muestra],
                                                         E_num, E_cat, X_agg=agg))
+        lotes[rol] = (next(iter(partes.values())) if len(partes) == 1
+                      else PESO_A * partes["A"] + (1 - PESO_A) * partes["C_K3"])
     return p, df, muestra, lotes
 
 

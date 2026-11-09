@@ -1,25 +1,32 @@
-# Corrida de evidencia — 2026-11-09T02:46:11Z — servidor local (2 workers, 2 vCPU)
+# Corrida de evidencia — 2026-11-09T03:52:04Z — servidor local, configuración de producción
+# (2 workers, 2 vCPU, PROMOVER_RETADOR=1: decide el ensamble E, LightGBM en sombra)
+
+## 1 cliente: 400 transacciones
+400 OK, 0 errores  en 16.7 s (24.0 tx/s)
+Latencia en servidor   p50 37 ms · p95 47 ms
+Latencia ida y vuelta  p50 42 ms · p95 52 ms
+Decisiones: {'allow': 395, 'review': 2, 'block': 3}
 
 ## Tráfico normal: 2,000 transacciones consecutivas del periodo de prueba, 4 clientes
 Regenerando datos del periodo de prueba…
 2000 transacciones desde 2026-03-24 16:39:05 (43 fraudes reales)
 
-2000 OK, 0 errores  en 44.1 s (45.3 tx/s)
-Latencia en servidor   p50 62 ms · p95 139 ms
-Latencia ida y vuelta  p50 81 ms · p95 167 ms
-Decisiones: {'allow': 1864, 'review': 58, 'block': 78}
+2000 OK, 0 errores  en 93.9 s (21.3 tx/s)
+Latencia en servidor   p50 160 ms · p95 239 ms
+Latencia ida y vuelta  p50 186 ms · p95 273 ms
+Decisiones: {'allow': 1902, 'review': 21, 'block': 77}
 
 Enviando etiquetas (contracargos)…
 2000 etiquetas enviadas. Ver http://localhost:7860/monitor
 
-## Deriva simulada: 500 transacciones con montos ×2.5
+## Deriva simulada: 500 transacciones con montos ×2.5, 4 clientes
 Regenerando datos del periodo de prueba…
 500 transacciones desde 2026-03-27 13:40:06 (4 fraudes reales)
 
-500 OK, 0 errores  en 9.9 s (50.6 tx/s)
-Latencia en servidor   p50 64 ms · p95 95 ms
-Latencia ida y vuelta  p50 74 ms · p95 109 ms
-Decisiones: {'allow': 476, 'review': 9, 'block': 15}
+500 OK, 0 errores  en 9.3 s (53.8 tx/s)
+Latencia en servidor   p50 62 ms · p95 92 ms
+Latencia ida y vuelta  p50 70 ms · p95 102 ms
+Decisiones: {'allow': 482, 'review': 2, 'block': 16}
 
 Enviando etiquetas (contracargos)…
 500 etiquetas enviadas. Ver http://localhost:7860/monitor

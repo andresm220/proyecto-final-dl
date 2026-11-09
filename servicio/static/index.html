@@ -67,7 +67,8 @@
           </div>
           <div style="font-size:13px;color:var(--muted)">Probabilidad calibrada de fraude: <b id="r-score" style="color:var(--ink)"></b></div>
           <div class="barra" id="barra"></div>
-          <h2 style="margin-top:6px">Por qué (contribuciones del modelo)</h2>
+          <div id="r-componentes" style="font-size:13px;color:var(--muted);margin:-8px 0 16px"></div>
+          <h2 style="margin-top:6px" id="t-motivos">Por qué (contribuciones del modelo)</h2>
           <div id="r-motivos"></div>
           <h2 style="margin-top:18px">Retador en modo sombra</h2>
           <p style="font-size:13.5px;margin:0 0 6px" id="r-retador"></p>
@@ -179,6 +180,12 @@ function mostrar(j) {
   $("r-explica").textContent = EXPLICA[j.decision];
   $("r-score").textContent = (j.risk_score * 100).toFixed(2) + " %";
   barra(j.risk_score, j.umbral_revision, j.umbral_bloqueo);
+  const NOMBRES = {A: "LightGBM (agregados)", C_K3: "GRU (orden de las últimas 3)", B_K3: "GRU"};
+  const comp = Object.entries(j.componentes || {});
+  $("r-componentes").innerHTML = comp.length > 1
+    ? "Ensamble = promedio de " + comp.map(([k, v]) => `<b style="color:var(--ink)">${NOMBRES[k] || k}</b> ${v.toFixed(3)}`).join(" y ") + ". Son puntajes crudos de 0 a 1, no probabilidades: el promedio se calibra después."
+    : "";
+  $("t-motivos").textContent = comp.length > 1 ? "Por qué (componente LightGBM del ensamble)" : "Por qué (contribuciones del modelo)";
   $("r-motivos").innerHTML = j.motivos.length ? j.motivos.map(m =>
     `<div class="motivo"><span>${m.descripcion} <span style="color:var(--muted)">= ${m.valor}</span></span><span class="${m.contribucion > 0 ? "sube" : "baja"}">${m.efecto}</span></div>`).join("")
     : `<p class="ayuda">El modelo campeón es secuencial; no expone contribuciones por variable.</p>`;
