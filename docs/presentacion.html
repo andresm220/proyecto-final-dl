@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Proyecto Final — Modelo en Producción</title>
+<style>
+@page { size: 1280px 720px; margin: 0; }
+:root { --ink:#1b1d21; --muted:#686b72; --line:#e2dfd6; --bg:#f7f6f2; --acc:#1f4e79; --acc2:#e6eef6;
+  --ok:#2f7d4f; --oks:#e3f2e8; --warn:#a86a00; --warns:#fbefd6; --bad:#b3261e; --bads:#fbe3e1; }
+* { box-sizing:border-box; margin:0; }
+body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:#ccc; }
+.s { width:1280px; height:720px; background:var(--bg); position:relative; overflow:hidden;
+  padding:56px 72px; page-break-after:always; display:flex; flex-direction:column; }
+.s:last-child { page-break-after:auto; }
+.n { position:absolute; bottom:24px; right:40px; font-size:13px; color:var(--muted); }
+.k { font-size:14px; letter-spacing:.14em; text-transform:uppercase; color:var(--acc); font-weight:700; margin-bottom:12px; }
+h1 { font-size:44px; line-height:1.12; letter-spacing:-.01em; }
+h2 { font-size:34px; line-height:1.15; letter-spacing:-.01em; margin-bottom:26px; }
+p, li { font-size:20px; line-height:1.45; }
+.mut { color:var(--muted); }
+.row { display:flex; gap:28px; flex:1; min-height:0; }
+.col { flex:1; display:flex; flex-direction:column; gap:16px; min-width:0; }
+.card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; }
+.card h3 { font-size:15px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:8px; }
+.big { font-size:46px; font-weight:750; letter-spacing:-.02em; line-height:1; }
+table { border-collapse:collapse; width:100%; font-size:18px; }
+th { text-align:left; color:var(--muted); font-weight:600; font-size:14px; text-transform:uppercase; letter-spacing:.06em; padding:8px 10px; border-bottom:2px solid var(--line); }
+td { padding:10px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+td.r, th.r { text-align:right; }
+.pill { display:inline-block; padding:3px 12px; border-radius:99px; font-weight:700; font-size:16px; }
+.ok { background:var(--oks); color:var(--ok); } .bad { background:var(--bads); color:var(--bad); } .warn { background:var(--warns); color:var(--warn); }
+.acc { background:var(--acc2); color:var(--acc); }
+.bar { height:26px; border-radius:5px; background:var(--acc); display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:#fff; font-size:14px; font-weight:700; }
+.bar.g { background:#b9b6ad; } .bar.a { background:#2f7d4f; }
+.err { position:absolute; top:50%; height:2px; background:var(--ink); }
+.flow { display:flex; align-items:stretch; gap:12px; }
+.box { flex:1; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-size:16px; line-height:1.35; }
+.box b { display:block; font-size:17px; margin-bottom:4px; }
+.arr { align-self:center; font-size:26px; color:var(--muted); }
+img.cap { border:1px solid var(--line); border-radius:10px; object-fit:cover; object-position:top; width:100%; }
+ul { padding-left:22px; } li { margin-bottom:8px; }
+.tit { background:var(--acc); color:#fff; }
+.tit .k { color:#bcd3ea; } .tit .mut { color:#c8d6e4; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.9em; background:#ece9e1; padding:1px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="s tit" style="justify-content:center">
+  <div class="k">Proyecto Final · Deep Learning y Sistemas Inteligentes 2026 · UVG</div>
+  <h1 style="font-size:58px;max-width:1000px">¿Mantenemos este modelo<br>en producción?</h1>
+  <p class="mut" style="font-size:24px;margin-top:22px">Monitoreo transaccional del Banco del Altiplano: API de riesgo de fraude con campeón y retador</p>
+  <p style="margin-top:46px;font-size:20px">Andrés Mazariegos · June Herrera · <i>[Integrante 3]</i></p>
+  <p class="mut" style="font-size:17px;margin-top:6px">Modelo de origen: Proyecto 1 · Prof. Kevin Recinos · noviembre 2026</p>
+</section>
+
+<!-- 2 -->
+<section class="s">
+  <div class="k">1 · Problemática</div>
+  <h2>Cada transacción se decide en milisegundos, sin saber todavía si es fraude</h2>
+  <div class="row">
+    <div class="col">
+      <div class="card"><h3>Dejar pasar un fraude</h3><div class="big" style="color:var(--bad)">Q4,200</div></div>
+      <div class="card"><h3>Bloquear a un cliente legítimo</h3><div class="big" style="color:var(--warn)">Q180</div></div>
+      <p class="mut" style="font-size:18px">Un error es 23 veces más caro que el otro: el umbral no puede estar en 50 %.</p>
+    </div>
+    <div class="col" style="flex:1.5">
+      <div class="card">
+        <h3>La decisión que depende del modelo</h3>
+        <table>
+          <tr><th>Probabilidad calibrada</th><th>Acción</th><th>Quién</th></tr>
+          <tr><td>≥ 1.6 %</td><td><span class="pill bad">Bloquear</span></td><td>automático</td></tr>
+          <tr><td>0.23 % – 1.6 %</td><td><span class="pill warn">Revisar</span></td><td>analista (≤ 1 % del tráfico)</td></tr>
+          <tr><td>&lt; 0.23 %</td><td><span class="pill ok">Aprobar</span></td><td>automático</td></tr>
+        </table>
+      </div>
+      <div class="card"><h3>Usuarios</h3>
+        <p style="font-size:18px"><b>Sistema autorizador</b> — llama a la API por transacción, necesita p95 &lt; 100 ms.<br>
+        <b>Analista de riesgos</b> — atiende la cola de revisión y necesita saber <i>por qué</i>.<br>
+        <b>Este comité</b> — decide con el panel si el modelo se mantiene, se reentrena o se reemplaza.</p></div>
+    </div>
+  </div>
+  <div class="n">2</div>
+</section>
+
+<!-- 3 -->
+<section class="s">
+  <div class="k">2 · Planificación y supuestos</div>
+  <h2>Hipótesis escrita antes de entrenar; paridad probada antes de desplegar</h2>
+  <div class="row">
+    <div class="col" style="flex:1.25">
+      <table style="font-size:16.5px">
+        <tr><th>Etapa</th><th>Fecha</th><th>Responsable</th></tr>
+        <tr><td>Elegir modelo (P1 sobre P2 y P3)</td><td>8 nov</td><td>Trío</td></tr>
+        <tr><td>Congelar hipótesis y criterio</td><td>8 nov 20:26</td><td>A. Mazariegos</td></tr>
+        <tr><td>Reentrenar K = 3, paquete de producción</td><td>8 nov</td><td>J. Herrera</td></tr>
+        <tr><td>API, demo, registro, monitoreo</td><td>8 nov</td><td>A. Mazariegos</td></tr>
+        <tr><td>Pruebas de contrato y paridad</td><td>8 nov</td><td><i>Integrante 3</i></td></tr>
+        <tr><td>Despliegue y tráfico de prueba</td><td>9 nov</td><td><i>Integrante 3</i> · J. Herrera</td></tr>
+        <tr><td>Monitoreo y versión final</td><td>≤ 15 nov</td><td>Trío</td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <div class="card"><h3>Datos</h3><p style="font-size:17px">Sintéticos (generador del P1, misma semilla): 419,821 transacciones, 4,000 tarjetas, 1.18 % fraude. Partición <b>temporal</b>. Las etiquetas llegan días después (contracargos).</p></div>
+      <div class="card"><h3>Usuario</h3><p style="font-size:17px">El autorizador envía 7 días de historia. Los analistas revisan ≤ 1 % del tráfico. Costos promedio fijos.</p></div>
+      <div class="card"><h3>Entorno</h3><p style="font-size:17px">CPU, 2 vCPU (Hugging Face Spaces gratuito). Registro efímero, exportable a CSV.</p></div>
+    </div>
+  </div>
+  <div class="n">3</div>
+</section>
+
+<!-- 4 -->
+<section class="s">
+  <div class="k">3 · Modelo planteado</div>
+  <h2>Del Proyecto 1 conservamos todo y cambiamos una sola cosa: K = 20 → 3</h2>
+  <div class="row">
+    <div class="col">
+      <div class="card"><h3>Lo que dijo el Proyecto 1 de sí mismo</h3>
+        <p style="font-size:18px">Su propia prueba de recorte de historia mostró que el GRU con <code>K = 20</code> estaba en su <b>peor</b> configuración (0.636 de AUC-PR contra 0.749 con <code>K = 3</code>), y que el resultado dependía mucho de la semilla (± 0.068).</p></div>
+      <div class="card"><h3>Por qué tendría sentido</h3>
+        <p style="font-size:18px">El patrón "sondeo y golpe" vive en las últimas transacciones. Con 20 pasos el GRU tenía que aprender a ignorar 17 pasos de relleno o ruido en 30 épocas.</p></div>
+    </div>
+    <div class="col">
+      <div class="card" style="font-size:16px;line-height:1.5">
+        <h3>Retador — C_K3 (Deep Learning)</h3>
+        <p style="font-size:16px">últimas 3 transacciones → 7 numéricas + embeddings (rubro 8, canal 4, comercio 16) → <b>GRU 64</b> con máscara → dropout 0.3 → ⊕ 30 agregados → Dense 32 → sigmoide <span class="mut">· 27,457 parámetros</span></p>
+        <h3 style="margin-top:14px">Línea base — A</h3>
+        <p style="font-size:16px">LightGBM sobre 30 agregados causales, ciegos al orden</p>
+      </div>
+      <div class="card"><h3>Lo que NO cambió</h3><p style="font-size:17px">Datos, partición, features, semillas (7, 13, 29), hiperparámetros. Si algo mejora, es por K.</p></div>
+    </div>
+  </div>
+  <div class="n">4</div>
+</section>
+
+<!-- 5 -->
+<section class="s">
+  <div class="k">4 · Validación de hipótesis</div>
+  <h2>H1 se cumple; H2 no. Lo importante: el GRU dejó de depender de la suerte</h2>
+  <div class="row">
+    <div class="col" style="flex:1.3">
+      <p class="mut" style="font-size:15px;margin-bottom:4px">AUC-PR de validación, media de 3 semillas (barra) ± desviación</p>
+      <div style="display:grid;grid-template-columns:150px 1fr 120px;gap:12px 14px;align-items:center;font-size:17px">
+        <span>A · LightGBM</span><div style="position:relative"><div class="bar a" style="width:83.3%">0.833</div></div><span class="mut">± 0.002</span>
+        <span>B · GRU K=20</span><div><div class="bar g" style="width:71.4%">0.714</div></div><span style="color:var(--bad);font-weight:700">± 0.068</span>
+        <span><b>B · GRU K=3</b></span><div><div class="bar" style="width:74.6%">0.746</div></div><span class="mut">± 0.002</span>
+        <span>C · híbrido K=20</span><div><div class="bar g" style="width:69.4%">0.694</div></div><span class="mut">± 0.031</span>
+        <span><b>C · híbrido K=3</b></span><div><div class="bar" style="width:78.2%">0.782</div></div><span class="mut">± 0.005</span>
+      </div>
+      <p class="mut" style="font-size:15px;margin-top:18px">Hipótesis registradas 02:26 UTC; entrenamiento inició 02:28 UTC y guardó el SHA-256 del archivo de hipótesis.</p>
+    </div>
+    <div class="col">
+      <div class="card"><h3>H1 · GRU K=3 &gt; GRU K=20</h3>
+        <p style="font-size:16px">Criterio: +0.03 en la media <b>y</b> peor semilla &gt; 0.714</p>
+        <p style="font-size:18px;margin-top:6px">+0.032 · peor semilla 0.743 &nbsp;<span class="pill ok">Se cumple</span></p></div>
+      <div class="card"><h3>H2 · Híbrido K=3 ≥ LightGBM</h3>
+        <p style="font-size:16px">Criterio: media ≥ A − 0.005</p>
+        <p style="font-size:18px;margin-top:6px">−0.051 &nbsp;<span class="pill bad">No se cumple</span></p></div>
+      <div class="card"><h3>Permutación (falsificación)</h3>
+        <p style="font-size:16px">Barajar la ventana: 0.786 → 0.661. El GRU <b>sí</b> usa el orden.</p></div>
+    </div>
+  </div>
+  <div class="n">5</div>
+</section>
+
+<!-- 6 -->
+<section class="s">
+  <div class="k">4 · Regla de decisión (congelada) y prueba, evaluada una vez</div>
+  <h2>LightGBM decide; el GRU híbrido corre en sombra sobre el mismo tráfico</h2>
+  <div class="row">
+    <div class="col" style="flex:1.5">
+      <table>
+        <tr><th>Prueba · 13 días · 703 fraudes</th><th class="r">AUC-PR</th><th class="r">Recall</th><th class="r">Costo</th><th class="r">Ahorro / mes</th></tr>
+        <tr><td><b>A — campeón</b></td><td class="r"><b>0.857</b></td><td class="r">97.7 %</td><td class="r"><b>Q261 k</b></td><td class="r"><b>Q6.02 M</b></td></tr>
+        <tr><td>C_K3 — retador</td><td class="r">0.789</td><td class="r">94.2 %</td><td class="r">Q365 k</td><td class="r">Q5.79 M</td></tr>
+        <tr><td class="mut">Sin modelo</td><td class="r mut">—</td><td class="r mut">0 %</td><td class="r mut">Q2.95 M</td><td class="r mut">—</td></tr>
+      </table>
+      <p class="mut" style="font-size:16px;margin-top:16px">El orden de la tabla es el mismo que en validación: test confirmó la decisión, no la tomó.</p>
+    </div>
+    <div class="col">
+      <div class="card"><h3>Por qué sombra y no reemplazo</h3>
+        <p style="font-size:17px">Ningún secuencial superó a A. Pero el retador ve exactamente lo mismo que el campeón, su decisión se registra y no se ejecuta: el comité puede compararlos en tráfico real sin arriesgar un quetzal.</p></div>
+      <div class="card acc" style="border-color:transparent"><h3 style="color:var(--acc)">Si el comité decide promoverlo</h3>
+        <p style="font-size:17px">Se reinicia con <code>PROMOVER_RETADOR=1</code>. Sin reentrenar: cada modelo conserva su calibrador y su umbral.</p></div>
+    </div>
+  </div>
+  <div class="n">6</div>
+</section>
+
+<!-- 7 -->
+<section class="s">
+  <div class="k">5 · Herramientas y arquitectura</div>
+  <h2>Datos → entrenamiento → servicio → monitoreo</h2>
+  <div class="flow">
+    <div class="box"><b>Datos</b>Generador P1 (semilla fija) · partición temporal train / val / test</div><div class="arr">→</div>
+    <div class="box"><b>Entrenamiento</b>Features del P1 · LightGBM ×3 · GRU ×3 · regla congelada · calibración + u* en val · ~10 min CPU</div><div class="arr">→</div>
+    <div class="box"><b>Artefactos</b>modelos · scalers · vocabularios · umbrales · referencia PSI · metadata con hash de hipótesis</div>
+  </div>
+  <div style="text-align:center;font-size:26px;color:var(--muted);margin:6px 0">↓</div>
+  <div class="flow">
+    <div class="box" style="flex:1.4"><b>Servicio · Docker en Hugging Face Spaces</b>FastAPI + Uvicorn (2 procesos) · <code>POST /predecir</code> · campeón decide, retador en sombra · motivos SHAP para el analista · validación de entradas (422)</div><div class="arr">→</div>
+    <div class="box"><b>Registro</b>SQLite: cada predicción + etiqueta que llega después (<code>/retroalimentacion</code>)</div><div class="arr">→</div>
+    <div class="box"><b>Monitoreo</b><code>/monitor</code>: latencia, PSI de puntaje y entradas en ventana móvil, costo real de campeón vs. retador</div>
+  </div>
+  <div class="row" style="margin-top:22px;flex:0">
+    <div class="card" style="flex:1"><p style="font-size:17px"><b>Clave del diseño:</b> el servicio <b>no reimplementa ninguna feature</b>. Arma un mini-DataFrame con la historia + la transacción y llama a las <i>mismas</i> funciones del entrenamiento.</p></div>
+    <div class="card" style="flex:1"><p style="font-size:17px">Keras 3 (torch) · LightGBM · FastAPI · Pydantic · SQLite · Chart.js local · Docker <code>python:3.13-slim</code> + torch CPU</p></div>
+  </div>
+  <div class="n">7</div>
+</section>
+
+<!-- 8 -->
+<section class="s">
+  <div class="k">6 · Evidencias · ¿calcula lo mismo que en el entrenamiento?</div>
+  <h2>75 pruebas automáticas; la más importante atrapó un bug antes de desplegar</h2>
+  <div class="row">
+    <div class="col">
+      <div class="card"><h3>Paridad entrenamiento ↔ servicio</h3>
+        <p style="font-size:18px">40 transacciones reales del periodo de prueba (15 fraudes), puntuadas por el pipeline por lotes y por la API. Diferencia máxima permitida: <b>0.00001</b>, en ambos modelos.</p>
+        <p style="font-size:18px;margin-top:10px">Primera corrida: <span class="pill bad">falló</span> — timestamps con y sin microsegundos se parseaban con un solo formato. Corregido: <span class="pill ok">pasa</span></p></div>
+      <div class="card"><h3>Historia recortada</h3><p style="font-size:17px">Mandar toda la historia o solo 7 días da el mismo puntaje → el contrato de 7 días es suficiente.</p></div>
+    </div>
+    <div class="col">
+      <div class="card"><h3>Contrato de la API</h3>
+        <ul style="font-size:17px"><li>Decisión siempre coherente con los umbrales</li><li>422 ante canal, rubro, monto o fecha inválidos</li><li>422 si la transacción es anterior a su historia</li><li>Retroalimentación, exportación CSV, borrado protegido</li></ul></div>
+      <div class="card"><h3>Monitoreo</h3><p style="font-size:17px">El PSI calla con tráfico estable y alerta con montos inflados o un canal nuevo.</p></div>
+    </div>
+  </div>
+  <div class="n">8</div>
+</section>
+
+<!-- 9 -->
+<section class="s" style="padding-bottom:30px">
+  <div class="k">6 · Evidencias · una persona ajena al equipo puede usarlo</div>
+  <h2 style="margin-bottom:14px">Demo: un "sondeo y golpe" real del periodo de prueba</h2>
+  <div class="row">
+    <div class="col" style="flex:1.75"><img class="cap" src="../evidencias/demo_sondeo_y_golpe.png" style="height:520px"></div>
+    <div class="col">
+      <div class="card"><h3>Lo que ve el analista</h3><p style="font-size:17px">Varias compras pequeñas en línea en 20 minutos (Q8, Q28, Q29, Q85…) y, una hora después, Q2,509 en una gasolinera. Riesgo 53 % → <b>Bloquear</b>.</p></div>
+      <div class="card"><h3>Por qué</h3><p style="font-size:17px">Monto 28× su media de 7 días · 3 transacciones en la última hora.</p></div>
+      <div class="card"><h3>Retador</h3><p style="font-size:17px">32 % → también bloquearía.</p></div>
+      <p class="mut" style="font-size:15px">URL: <i>&lt;usuario&gt;-monitoreo-transaccional.hf.space</i> · <code>/docs</code> para la API</p>
+    </div>
+  </div>
+  <div class="n">9</div>
+</section>
+
+<!-- 10 -->
+<section class="s" style="padding-bottom:30px">
+  <div class="k">6 · Evidencias · registros de uso y monitoreo</div>
+  <h2 style="margin-bottom:14px">2,500 transacciones reproducidas: 0 errores, y el monitoreo encontró dos cosas</h2>
+  <div class="row">
+    <div class="col" style="flex:1.1"><img class="cap" src="../evidencias/monitor_deriva_ultimas500.png" style="height:520px"></div>
+    <div class="col">
+      <table style="font-size:15.5px">
+        <tr><th>2,000 tx · 43 fraudes</th><th class="r">Recall</th><th class="r">Costo</th></tr>
+        <tr><td>Campeón A</td><td class="r">100 %</td><td class="r"><b>Q6,300</b></td></tr>
+        <tr><td>Retador C_K3</td><td class="r">97.7 %</td><td class="r">Q9,780</td></tr>
+        <tr><td class="mut">Sin modelo</td><td class="r mut">0 %</td><td class="r mut">Q180,600</td></tr>
+      </table>
+      <div class="card" style="padding:14px 16px"><h3>1 · Latencia</h3><p style="font-size:15.5px">Con 1 proceso y 4 clientes: p95 = 252 ms <span class="pill bad" style="font-size:13px">❌</span>. Causa: GIL de Python. Con 2 procesos: 45–51 tx/s, p95 95–139 ms.</p></div>
+      <div class="card" style="padding:14px 16px"><h3>2 · Deriva (montos ×2.5)</h3><p style="font-size:15.5px">PSI del monto = <b>1.02 → alerta</b>; PSI del puntaje = 0.05. Las entradas cambiaron, el modelo no: usa montos <i>relativos</i>. Alerta de entrada ≠ modelo roto.</p></div>
+    </div>
+  </div>
+  <div class="n">10</div>
+</section>
+
+<!-- 11 -->
+<section class="s">
+  <div class="k">Recomendación al comité</div>
+  <h2>Mantener en producción, con el GRU en sombra cuatro semanas</h2>
+  <div class="row">
+    <div class="col">
+      <div class="card"><h3>Decisión que proponemos</h3>
+        <ul style="font-size:18px"><li><b>Mantener</b> a LightGBM como campeón: ahorra ~Q6 M/mes frente a no tener modelo.</li>
+        <li><b>Mantener</b> el GRU híbrido K=3 en sombra y revisarlo cada semana en el panel.</li>
+        <li><b>Promover</b> al retador solo si, con ≥ 200 fraudes etiquetados, su costo realizado es menor que el del campeón.</li></ul></div>
+      <div class="card"><h3>Disparadores de reentrenamiento</h3>
+        <p style="font-size:17px">PSI del puntaje &gt; 0.25 · tasa de bloqueo &gt; 3× la esperada · recall al bloquear &lt; 90 %</p></div>
+    </div>
+    <div class="col">
+      <div class="card"><h3>Riesgos que no escondemos</h3>
+        <ul style="font-size:17px"><li><b>Datos sintéticos</b>: probamos el sistema, no que el patrón exista así en el banco.</li>
+        <li>Calibrador y umbral heredan el optimismo de validación.</li>
+        <li>Costos fijos: en la realidad un FN escala con el monto.</li>
+        <li>Registro efímero en el plan gratuito; sin autenticación en la API.</li></ul></div>
+      <div class="card acc" style="border-color:transparent"><h3 style="color:var(--acc)">Siguiente iteración</h3>
+        <p style="font-size:17px">Ensamble de A y C_K3 (promedio de probabilidades calibradas), validado con el mismo protocolo.</p></div>
+    </div>
+  </div>
+  <div class="n">11</div>
+</section>
+
+</body>
+</html>

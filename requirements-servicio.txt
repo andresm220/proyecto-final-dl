@@ -1,0 +1,9 @@
+# Solo lo que necesita el contenedor de producción (torch CPU se instala aparte en el Dockerfile).
+numpy==2.3.5
+pandas==2.3.3
+scikit-learn==1.8.0
+keras==3.15.1
+lightgbm==4.7.0
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+pydantic==2.14.3

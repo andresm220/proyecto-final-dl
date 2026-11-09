@@ -1,0 +1,8 @@
+.git
+artefactos/cache_entrenamiento
+servicio/registros.db
+**/__pycache__
+docs
+tests
+scripts
+entrenamiento

@@ -1,0 +1,212 @@
+{
+  "version_modelo": "20261109-A-vs-C_K3",
+  "hipotesis_sha256": "09fed22d6ba8a130c4a653d792725c8ed9862a7a77fec4600a193ef06d8d17a7",
+  "inicio_entrenamiento": "2026-11-09T02:28:57+00:00",
+  "fecha_evaluacion_test": "2026-11-09T02:38:28+00:00",
+  "dev_mode": false,
+  "K": 3,
+  "costos": {
+    "FN": 4200.0,
+    "FP": 180.0
+  },
+  "capacidad_revision": 0.01,
+  "validacion": {
+    "auc_pr_por_semilla": {
+      "A": [
+        0.8316638750604809,
+        0.831184586598692,
+        0.835726358152239
+      ],
+      "B_K3": [
+        0.7489732234714259,
+        0.7449419336896175,
+        0.7432665412614748
+      ],
+      "C_K3": [
+        0.7745796240694356,
+        0.785763727126352,
+        0.7856541635820555
+      ]
+    },
+    "media": {
+      "A": 0.8328582732704707,
+      "B_K3": 0.7457272328075061,
+      "C_K3": 0.7819991715926143
+    },
+    "desviacion": {
+      "A": 0.00203745961500624,
+      "B_K3": 0.002395005426543676,
+      "C_K3": 0.005246603036193421
+    },
+    "referencia_P1": {
+      "A": 0.8328582732704707,
+      "B_K20": 0.7137847506722514
+    }
+  },
+  "hipotesis": {
+    "H1": {
+      "mejora_media": 0.031942482135254635,
+      "peor_semilla": 0.7432665412614748,
+      "exito": true
+    },
+    "H2": {
+      "diferencia_vs_A": -0.050859101677856344,
+      "exito": false
+    }
+  },
+  "roles": {
+    "campeon": {
+      "familia": "A",
+      "semilla": 29,
+      "archivo": "campeon_lightgbm.pkl",
+      "u_estrella": 0.016016016016016016,
+      "u_revision": 0.002257336343115124,
+      "costo_val": 257760.0,
+      "auc_pr_val": 0.835726358152239
+    },
+    "retador": {
+      "familia": "C_K3",
+      "semilla": 13,
+      "archivo": "retador_C_K3.keras",
+      "u_estrella": 0.03903903903903904,
+      "u_revision": 0.02120141342756184,
+      "costo_val": 408780.0,
+      "auc_pr_val": 0.785763727126352
+    }
+  },
+  "permutacion_val": {
+    "modelo": "C_K3",
+    "tabla": [
+      {
+        "variante": "original",
+        "auc_pr_B": 0.785763727126352,
+        "auc_pr_A": 0.835726358152239,
+        "caida_B": 0.0
+      },
+      {
+        "variante": "full",
+        "auc_pr_B": 0.6609274957503652,
+        "auc_pr_A": 0.835726358152239,
+        "caida_B": 0.12483623137598676
+      },
+      {
+        "variante": "history",
+        "auc_pr_B": 0.760932541943716,
+        "auc_pr_A": 0.835726358152239,
+        "caida_B": 0.02483118518263605
+      }
+    ]
+  },
+  "test": {
+    "A": {
+      "auc_pr": 0.856841190703669,
+      "costo_Q": 261420.0,
+      "en_umbral": {
+        "precision": 0.38901472253680636,
+        "recall": 0.9772403982930299,
+        "f1": 0.5565006075334143,
+        "tp": 687,
+        "fp": 1079,
+        "fn": 16,
+        "tn": 61192
+      },
+      "por_tipo": [
+        {
+          "grupo": "f1_golpe",
+          "n": 62328,
+          "n_fraude": 57,
+          "auc_pr": 0.5054614732867095,
+          "recall": 1.0
+        },
+        {
+          "grupo": "f1_sondeo",
+          "n": 62521,
+          "n_fraude": 250,
+          "auc_pr": 0.31759163004362795,
+          "recall": 0.952
+        },
+        {
+          "grupo": "f2",
+          "n": 62482,
+          "n_fraude": 211,
+          "auc_pr": 0.9667496913356457,
+          "recall": 1.0
+        },
+        {
+          "grupo": "f3",
+          "n": 62456,
+          "n_fraude": 185,
+          "auc_pr": 0.83084646569379,
+          "recall": 0.9783783783783784
+        }
+      ],
+      "tasa_bloqueo": 0.028043319465176103,
+      "tasa_revision": 0.019849461682599167,
+      "ahorro_mensual_vs_sin_modelo_Q": 6018085.266449026
+    },
+    "C_K3": {
+      "auc_pr": 0.7893801761770087,
+      "costo_Q": 364800.0,
+      "en_umbral": {
+        "precision": 0.38221709006928406,
+        "recall": 0.9416785206258891,
+        "f1": 0.5437371663244353,
+        "tp": 662,
+        "fp": 1070,
+        "fn": 41,
+        "tn": 61201
+      },
+      "por_tipo": [
+        {
+          "grupo": "f1_golpe",
+          "n": 62328,
+          "n_fraude": 57,
+          "auc_pr": 0.42982069904795506,
+          "recall": 1.0
+        },
+        {
+          "grupo": "f1_sondeo",
+          "n": 62521,
+          "n_fraude": 250,
+          "auc_pr": 0.230067308101305,
+          "recall": 0.868
+        },
+        {
+          "grupo": "f2",
+          "n": 62482,
+          "n_fraude": 211,
+          "auc_pr": 0.8757184651230817,
+          "recall": 0.990521327014218
+        },
+        {
+          "grupo": "f3",
+          "n": 62456,
+          "n_fraude": 185,
+          "auc_pr": 0.7653106207690543,
+          "recall": 0.9675675675675676
+        }
+      ],
+      "tasa_bloqueo": 0.027503414107409408,
+      "tasa_revision": 0.013386476958744878,
+      "ahorro_mensual_vs_sin_modelo_Q": 5786904.277126312
+    }
+  },
+  "test_info": {
+    "dias": 13.415462962962962,
+    "n": 62974,
+    "n_fraude": 703,
+    "costo_sin_modelo_Q": 2952600.0
+  },
+  "versiones": {
+    "python": "3.13.18",
+    "sistema": "Linux 6.18.44-fc-v310",
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.8.0",
+    "keras": "3.15.1",
+    "torch": "2.15.0",
+    "lightgbm": "4.7.0",
+    "keras_backend": "torch"
+  },
+  "duracion_min": 9.53610577583313
+}

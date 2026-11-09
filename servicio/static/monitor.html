@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de Monitoreo</title>
+<link rel="stylesheet" href="/static/estilo.css">
+<script src="/static/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Monitoreo transaccional <span>· panel del comité</span></h1>
+  <nav>
+    <a href="/">Evaluar transacción</a>
+    <a href="/monitor" class="activo">Monitoreo</a>
+    <a href="/docs">API</a>
+  </nav>
+</header>
+<main>
+  <div class="acciones" style="margin:0 0 16px">
+    <label style="flex-direction:row;align-items:center;gap:8px">Origen del tráfico
+      <select id="origen" style="width:auto"><option value="">todo</option></select></label>
+    <label style="flex-direction:row;align-items:center;gap:8px">Ventana
+      <select id="ventana" style="width:auto">
+        <option value="500">últimas 500</option><option value="1000" selected>últimas 1,000</option>
+        <option value="5000">últimas 5,000</option><option value="0">todo el historial</option>
+      </select></label>
+    <span class="ayuda" style="margin:0" id="info"></span>
+    <a class="sec" href="/registros.csv" style="text-decoration:none;margin-left:auto;padding:7px 12px;border:1px solid var(--line);border-radius:7px;color:var(--accent);font-size:13px">Descargar registros (CSV)</a>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="panel"><h2>Alertas</h2><div id="alertas"></div></div>
+
+  <div class="dos" style="margin-top:20px">
+    <div class="panel"><h2>Volumen y decisiones en el tiempo</h2><canvas id="g-serie" height="220"></canvas></div>
+    <div class="panel"><h2>Deriva del puntaje del campeón (deciles de validación)</h2><canvas id="g-psi" height="220"></canvas>
+      <p class="ayuda">Si el tráfico se parece a validación, cada barra ronda el 10 %. PSI &lt; 0.10 estable · 0.10–0.25 vigilar · &gt; 0.25 alerta.</p></div>
+  </div>
+
+  <div class="dos" style="margin-top:20px">
+    <div class="panel"><h2>Estabilidad de entradas y puntajes (PSI)</h2><table id="t-psi"></table></div>
+    <div class="panel"><h2>Campeón vs. retador sobre tráfico etiquetado</h2><div id="t-desemp"></div></div>
+  </div>
+
+  <div class="panel" style="margin-top:20px"><h2>Últimas predicciones</h2>
+    <div class="scroll" style="max-height:420px"><table id="t-ultimas"></table></div></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const pct = (x, d = 1) => x == null ? "—" : (x * 100).toFixed(d) + " %";
+const Q = (x) => x == null ? "—" : "Q" + Math.round(x).toLocaleString("es-GT");
+const NOMBRE = {allow: "Aprobar", review: "Revisar", block: "Bloquear"};
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let gSerie, gPsi;
+
+function kpi(t, v, s = "") { return `<div class="kpi"><small>${t}</small><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`; }
+
+async function cargar() {
+  const o = $("origen").value;
+  const params = new URLSearchParams({ventana: $("ventana").value});
+  if (o) params.set("origen", o);
+  const m = await (await fetch("/metricas?" + params)).json();
+  const sel = $("origen"), previo = sel.value;
+  sel.innerHTML = `<option value="">todo</option>` + (m.origenes || []).map(x => `<option>${x}</option>`).join("");
+  sel.value = previo;
+  $("info").textContent = `Modelo ${m.version_modelo} · campeón ${m.campeon} · retador ${m.retador} · actualizado ${new Date().toLocaleTimeString()}`;
+  $("kpis").innerHTML = kpi("Predicciones", m.n_predicciones.toLocaleString()) +
+    kpi("Bloqueadas", pct(m.decisiones?.block, 2)) + kpi("A revisión", pct(m.decisiones?.review, 2)) +
+    kpi("Latencia p95", m.latencia_ms ? m.latencia_ms.p95.toFixed(0) + " ms" : "—", "objetivo < 100 ms") +
+    kpi("Acuerdo campeón/retador", pct(m.acuerdo_campeon_retador)) +
+    kpi("Con etiqueta real", (m.n_etiquetadas ?? 0).toLocaleString());
+  const al = m.alertas.length ? m.alertas : [{nivel: "ok", mensaje: "Sin alertas: el servicio y los datos se comportan como en validación."}];
+  $("alertas").innerHTML = al.map(a => `<div class="alerta n-${a.nivel}">${a.mensaje}</div>`).join("");
+  if (!m.serie) return;
+
+  const s = m.serie;
+  const datosSerie = {labels: s.map(x => x.desde.slice(11, 16)), datasets: [
+    {type: "bar", label: "Aprobadas", data: s.map(x => x.n - x.block - x.review), backgroundColor: css("--allow-soft"), borderColor: css("--allow"), borderWidth: 1, stack: "a"},
+    {type: "bar", label: "Revisión", data: s.map(x => x.review), backgroundColor: css("--review"), stack: "a"},
+    {type: "bar", label: "Bloqueadas", data: s.map(x => x.block), backgroundColor: css("--block"), stack: "a"},
+  ]};
+  const hayChart = typeof Chart !== "undefined";
+  if (gSerie) { gSerie.data = datosSerie; gSerie.update(); }
+  else if (hayChart) gSerie = new Chart($("g-serie"), {data: datosSerie, options: {animation: false, scales: {x: {stacked: true}, y: {stacked: true, beginAtZero: true}}}});
+
+  const d = m.deriva.puntaje_campeon;
+  const datosPsi = {labels: d.esperado.map((_, i) => `D${i + 1}`), datasets: [
+    {label: "Validación", data: d.esperado, backgroundColor: css("--line")},
+    {label: "Tráfico actual", data: d.actual, backgroundColor: css("--accent")},
+  ]};
+  if (gPsi) { gPsi.data = datosPsi; gPsi.update(); }
+  else if (hayChart) gPsi = new Chart($("g-psi"), {type: "bar", data: datosPsi, options: {animation: false, scales: {y: {ticks: {callback: v => (v * 100).toFixed(0) + "%"}}}}});
+
+  const nombres = {puntaje_campeon: "Puntaje del campeón", puntaje_retador: "Puntaje del retador", monto: "Monto", canal: "Canal"};
+  $("t-psi").innerHTML = "<tr><th>Variable</th><th class='num'>PSI</th><th>Estado</th></tr>" +
+    Object.entries(m.deriva).map(([k, v]) => `<tr><td>${nombres[k] || k}</td><td class="num">${v.psi == null ? "—" : v.psi.toFixed(3)}</td><td><span class="pill n-${v.nivel === "sin_datos" ? "info" : v.nivel}">${v.nivel.replace("_", " ")}</span></td></tr>`).join("");
+
+  const de = m.desempeno;
+  $("t-desemp").innerHTML = !de ? `<p class="vacio">Aún no llegan etiquetas.</p>` :
+    `<table><tr><th></th><th class="num">Campeón (${m.campeon})</th><th class="num">Retador (${m.retador})</th></tr>
+    ${[["Fraudes etiquetados", "n_fraude", x => x], ["Recall al bloquear", "recall_bloqueo", pct], ["Precisión al bloquear", "precision_bloqueo", pct],
+       ["Fraudes que fueron a revisión", "fraudes_en_revision", x => x], ["AUC-PR", "auc_pr", x => x == null ? "—" : x.toFixed(3)],
+       ["Falsos positivos", "fp", x => x], ["Fraudes no bloqueados", "fn", x => x], ["Costo realizado", "costo_Q", Q]]
+      .map(([t, k, f]) => `<tr><td>${t}</td><td class="num">${f(de.campeon[k])}</td><td class="num">${f(de.retador[k])}</td></tr>`).join("")}
+    <tr><td>Costo sin modelo</td><td class="num" colspan="2">${Q(de.costo_sin_modelo_Q)}</td></tr></table>
+    <p class="ayuda">Costo = fraudes no bloqueados × Q4,200 + bloqueos legítimos × Q180, sobre las transacciones cuya etiqueta ya llegó.</p>`;
+
+  $("t-ultimas").innerHTML = "<tr><th>Recibida (UTC)</th><th class='num'>Monto</th><th>Canal</th><th>Rubro</th><th class='num'>Riesgo</th><th>Decisión</th><th class='num'>Retador</th><th class='num'>ms</th><th>Real</th><th>Origen</th></tr>" +
+    m.ultimas.map(u => `<tr><td>${u.recibido_utc.slice(0, 19).replace("T", " ")}</td><td class="num">${u.amount.toFixed(2)}</td><td>${u.channel}</td><td>${u.mcc}</td><td class="num">${pct(u.p_campeon, 2)}</td><td><span class="pill d-${u.decision}">${NOMBRE[u.decision]}</span></td><td class="num">${pct(u.p_retador, 2)}</td><td class="num">${u.latencia_ms.toFixed(0)}</td><td>${u.is_fraud == null ? "—" : u.is_fraud ? "fraude" : "legítima"}</td><td>${u.origen}</td></tr>`).join("");
+}
+$("origen").onchange = cargar; $("ventana").onchange = cargar;
+cargar(); setInterval(cargar, 15000);
+</script>
+</body>
+</html>

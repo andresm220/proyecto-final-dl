@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riesgo Transaccional</title>
+<link rel="stylesheet" href="/static/estilo.css">
+</head>
+<body>
+<header>
+  <h1>Monitoreo transaccional <span>· Banco del Altiplano</span></h1>
+  <nav>
+    <a href="/" class="activo">Evaluar transacción</a>
+    <a href="/monitor">Monitoreo</a>
+    <a href="/docs">API</a>
+  </nav>
+</header>
+<main>
+  <div class="rejilla">
+    <section>
+      <div class="panel">
+        <h2>1 · Elegí un caso real del periodo de prueba</h2>
+        <div class="escenarios" id="escenarios"><div class="vacio">Cargando…</div></div>
+        <p class="ayuda" id="desc-escenario">Cada caso trae la historia de la tarjeta de los últimos 7 días y la transacción que está por autorizarse. Podés modificar la transacción antes de evaluarla.</p>
+      </div>
+
+      <div class="panel">
+        <h2>2 · Historia de la tarjeta <span id="n-hist" style="text-transform:none;letter-spacing:0"></span></h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Fecha y hora</th><th class="num">Monto (Q)</th><th>Comercio</th><th>Rubro</th><th>Canal</th><th>País</th></tr></thead>
+            <tbody id="historial"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>3 · Transacción en vuelo</h2>
+        <div class="form">
+          <label>Fecha y hora (UTC)<input id="f-ts" type="datetime-local" step="1"></label>
+          <label>Monto (Q)<input id="f-amount" type="number" min="0.01" step="0.01"></label>
+          <label>Comercio (id)<input id="f-merchant" type="number" min="0"></label>
+          <label>Rubro<select id="f-mcc"></select></label>
+          <label>Canal<select id="f-channel"></select></label>
+          <label>País<select id="f-country"></select></label>
+        </div>
+        <div class="acciones">
+          <button class="prim" id="btn-evaluar">Evaluar riesgo</button>
+          <button class="sec" id="btn-json">Ver / editar solicitud JSON</button>
+        </div>
+        <div id="caja-json" hidden style="margin-top:12px">
+          <textarea id="json"></textarea>
+          <p class="ayuda">Este es exactamente el cuerpo que recibe <code>POST /predecir</code>. Si lo editás, se envía tal cual.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel" id="panel-resultado">
+        <h2>Resultado</h2>
+        <div class="vacio" id="sin-resultado">Elegí un caso y presioná <b>Evaluar riesgo</b>.</div>
+        <div id="resultado" hidden>
+          <div class="decision" id="caja-decision">
+            <div class="tag">Decisión del modelo campeón</div>
+            <div class="grande" id="r-decision"></div>
+            <div id="r-explica" style="font-size:13.5px"></div>
+          </div>
+          <div style="font-size:13px;color:var(--muted)">Probabilidad calibrada de fraude: <b id="r-score" style="color:var(--ink)"></b></div>
+          <div class="barra" id="barra"></div>
+          <h2 style="margin-top:6px">Por qué (contribuciones del modelo)</h2>
+          <div id="r-motivos"></div>
+          <h2 style="margin-top:18px">Retador en modo sombra</h2>
+          <p style="font-size:13.5px;margin:0 0 6px" id="r-retador"></p>
+          <p class="ayuda" style="margin-top:0">El retador puntúa la misma transacción pero no decide nada: solo se registra para compararlo con el campeón sobre tráfico real.</p>
+          <h2 style="margin-top:18px">Etiqueta real</h2>
+          <div id="r-etiqueta" style="font-size:13.5px"></div>
+          <div class="acciones" style="margin-top:8px">
+            <button class="sec" data-fraude="true">Reportar como fraude</button>
+            <button class="sec" data-fraude="false">Reportar como legítima</button>
+            <span id="r-fb" class="ayuda" style="margin:0"></span>
+          </div>
+          <h2 style="margin-top:18px">Traza</h2>
+          <dl class="kv">
+            <dt>id</dt><dd id="r-id"></dd>
+            <dt>versión</dt><dd id="r-version"></dd>
+            <dt>latencia</dt><dd id="r-lat"></dd>
+            <dt>historia usada</dt><dd id="r-hist"></dd>
+          </dl>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Cómo decide</h2>
+        <p style="font-size:13.5px;margin:0">Dejar pasar un fraude cuesta en promedio <b>Q4,200</b>; bloquear a un cliente legítimo, <b>Q180</b>. Por eso no se bloquea a partir de 50 % de probabilidad sino de <b id="u-bloqueo">—</b>: el umbral que minimizó el costo en validación. Entre <b id="u-revision">—</b> y ese umbral la transacción va a la cola del analista, cuyo tamaño se limitó al 1 % del tráfico.</p>
+        <p class="ayuda" id="ficha"></p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const MCCS = ["supermercado","restaurante","combustible","farmacia","ropa","electronica","hogar","viajes","entretenimiento","salud","educacion","telecom","transporte","belleza","ferreteria"];
+const CANALES = ["POS","online","ATM","recurrente"];
+const PAISES = ["GT","US","MX","ES","CR"];
+const NOMBRE = {allow: "Aprobar", review: "Revisar", block: "Bloquear"};
+const EXPLICA = {
+  allow: "El riesgo está por debajo del umbral de revisión: la transacción se autoriza.",
+  review: "Riesgo intermedio: se autoriza pero entra a la cola de revisión manual del analista.",
+  block: "El riesgo supera el umbral de mínimo costo: se bloquea y se notifica al tarjetahabiente.",
+};
+let escenarios = [], actual = null, ultimaRespuesta = null;
+
+for (const [id, ops] of [["f-mcc", MCCS], ["f-channel", CANALES], ["f-country", PAISES]])
+  $(id).innerHTML = ops.map(o => `<option>${o}</option>`).join("");
+
+const fmtFecha = (s) => new Date(s).toISOString().replace("T", " ").slice(0, 16);
+const q = (n) => n.toLocaleString("es-GT", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+function pintarHistorial(h) {
+  $("n-hist").textContent = `(${h.length} transacciones)`;
+  $("historial").innerHTML = h.length ? h.map(t => `<tr><td>${fmtFecha(t.ts)}</td><td class="num">${q(t.amount)}</td><td>${t.merchant_id}</td><td>${t.mcc}</td><td>${t.channel}</td><td>${t.country}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="vacio">Tarjeta sin historia reciente</td></tr>`;
+  $("historial").parentElement.parentElement.scrollTop = 1e6;
+}
+
+function elegir(i) {
+  actual = structuredClone(escenarios[i]);
+  document.querySelectorAll(".escenario").forEach((b, j) => b.classList.toggle("sel", i === j));
+  $("desc-escenario").textContent = actual.descripcion;
+  pintarHistorial(actual.historial);
+  const t = actual.transaccion;
+  $("f-ts").value = t.ts.replace("Z", "").slice(0, 19);
+  $("f-amount").value = t.amount; $("f-merchant").value = t.merchant_id;
+  $("f-mcc").value = t.mcc; $("f-channel").value = t.channel; $("f-country").value = t.country;
+  $("json").value = ""; $("caja-json").hidden = true;
+}
+
+function cuerpo() {
+  if (!$("caja-json").hidden && $("json").value.trim()) return JSON.parse($("json").value);
+  return {
+    card_id: actual.card_id, historial: actual.historial,
+    transaccion: {
+      ts: $("f-ts").value + "Z", amount: parseFloat($("f-amount").value),
+      merchant_id: parseInt($("f-merchant").value), mcc: $("f-mcc").value,
+      channel: $("f-channel").value, country: $("f-country").value,
+    },
+  };
+}
+
+$("btn-json").onclick = () => {
+  const c = $("caja-json"); c.hidden = !c.hidden;
+  if (!c.hidden && actual) $("json").value = JSON.stringify(cuerpo(), null, 2);
+};
+
+function barra(p, ur, ub) {
+  const pos = (x) => `${Math.sqrt(Math.min(Math.max(x, 0), 1)) * 100}%`;
+  $("barra").innerHTML =
+    `<div class="marca" style="left:${pos(ur)}"><span>revisar ${(ur * 100).toFixed(1)}%</span></div>` +
+    `<div class="marca arriba" style="left:${pos(ub)}"><span>bloquear ${(ub * 100).toFixed(1)}%</span></div>` +
+    `<div class="punto" style="left:${pos(p)}"></div>`;
+}
+
+$("btn-evaluar").onclick = async () => {
+  if (!actual) return;
+  const b = $("btn-evaluar"); b.disabled = true; b.textContent = "Evaluando…";
+  try {
+    const r = await fetch("/predecir", {method: "POST", headers: {"Content-Type": "application/json", "X-Origen": "web"}, body: JSON.stringify(cuerpo())});
+    const j = await r.json();
+    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
+    ultimaRespuesta = j; mostrar(j);
+  } catch (e) { alert("Error: " + e.message); }
+  finally { b.disabled = false; b.textContent = "Evaluar riesgo"; }
+};
+
+function mostrar(j) {
+  $("sin-resultado").hidden = true; $("resultado").hidden = false;
+  $("caja-decision").className = "decision d-" + j.decision;
+  $("r-decision").textContent = NOMBRE[j.decision];
+  $("r-explica").textContent = EXPLICA[j.decision];
+  $("r-score").textContent = (j.risk_score * 100).toFixed(2) + " %";
+  barra(j.risk_score, j.umbral_revision, j.umbral_bloqueo);
+  $("r-motivos").innerHTML = j.motivos.length ? j.motivos.map(m =>
+    `<div class="motivo"><span>${m.descripcion} <span style="color:var(--muted)">= ${m.valor}</span></span><span class="${m.contribucion > 0 ? "sube" : "baja"}">${m.efecto}</span></div>`).join("")
+    : `<p class="ayuda">El modelo campeón es secuencial; no expone contribuciones por variable.</p>`;
+  $("r-retador").innerHTML = `${j.retador.familia}: <b>${(j.retador.risk_score * 100).toFixed(2)} %</b> → <span class="pill d-${j.retador.decision}">${NOMBRE[j.retador.decision]}</span>${j.retador.decision === j.decision ? " (coincide)" : " (difiere del campeón)"}`;
+  $("r-etiqueta").innerHTML = actual?.etiqueta_real ? `En los datos esta transacción es <b>${actual.etiqueta_real}</b>. En producción esta etiqueta llega días después, con el contracargo.` : "Desconocida.";
+  $("r-fb").textContent = "";
+  $("r-id").textContent = j.id; $("r-version").textContent = j.model_version;
+  $("r-lat").textContent = j.latencia_ms.toFixed(1) + " ms (en servidor)";
+  $("r-hist").textContent = j.n_historia_usada + " transacciones";
+}
+
+document.querySelectorAll("[data-fraude]").forEach(b => b.onclick = async () => {
+  if (!ultimaRespuesta) return;
+  const r = await fetch("/retroalimentacion", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({id: ultimaRespuesta.id, is_fraud: b.dataset.fraude === "true"})});
+  $("r-fb").textContent = r.ok ? "Etiqueta registrada ✓" : "No se pudo registrar";
+});
+
+fetch("/modelo").then(r => r.json()).then(m => {
+  const c = m.roles.campeon, r = m.roles.retador;
+  $("u-bloqueo").textContent = (c.u_estrella * 100).toFixed(1) + " %";
+  $("u-revision").textContent = (c.u_revision * 100).toFixed(2) + " %";
+  $("ficha").textContent = `Modelo ${m.version_modelo}. Campeón: ${c.familia} (AUC-PR validación ${c.auc_pr_val.toFixed(3)}). Retador en sombra: ${r.familia} (${r.auc_pr_val.toFixed(3)}).`;
+});
+
+fetch("/escenarios").then(r => r.json()).then(e => {
+  escenarios = e;
+  $("escenarios").innerHTML = e.map((s, i) => `<button class="escenario" data-i="${i}"><b>${s.titulo}</b><small>Q${q(s.transaccion.amount)} · ${s.transaccion.channel} · ${s.etiqueta_real}</small></button>`).join("");
+  document.querySelectorAll(".escenario").forEach(b => b.onclick = () => elegir(+b.dataset.i));
+  if (e.length) elegir(0);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,730 @@
+[
+ {
+  "id": "none_1",
+  "titulo": "Compra cotidiana #1",
+  "descripcion": "Una transacción legítima cualquiera del periodo de prueba.",
+  "etiqueta_real": "legítima",
+  "card_id": 705,
+  "historial": [
+   {
+    "ts": "2026-03-19T20:03:38Z",
+    "amount": 210.91,
+    "merchant_id": 263,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-20T10:38:23Z",
+    "amount": 104.77,
+    "merchant_id": 144,
+    "mcc": "electronica",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-20T17:44:58Z",
+    "amount": 205.39,
+    "merchant_id": 235,
+    "mcc": "telecom",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-20T23:08:52Z",
+    "amount": 42.9,
+    "merchant_id": 255,
+    "mcc": "salud",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-21T09:10:50Z",
+    "amount": 190.97,
+    "merchant_id": 263,
+    "mcc": "supermercado",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-24T13:32:25Z",
+    "amount": 70.87,
+    "merchant_id": 227,
+    "mcc": "supermercado",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T19:19:48Z",
+    "amount": 149.32,
+    "merchant_id": 69,
+    "mcc": "salud",
+    "channel": "POS",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-26T19:19:32Z",
+   "amount": 196.28,
+   "merchant_id": 69,
+   "mcc": "restaurante",
+   "channel": "POS",
+   "country": "GT"
+  }
+ },
+ {
+  "id": "none_2",
+  "titulo": "Compra cotidiana #2",
+  "descripcion": "Una transacción legítima cualquiera del periodo de prueba.",
+  "etiqueta_real": "legítima",
+  "card_id": 3403,
+  "historial": [
+   {
+    "ts": "2026-03-23T13:06:37Z",
+    "amount": 158.1,
+    "merchant_id": 282,
+    "mcc": "ferreteria",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T16:00:47Z",
+    "amount": 44.6,
+    "merchant_id": 42,
+    "mcc": "farmacia",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-24T09:49:09Z",
+    "amount": 86.04,
+    "merchant_id": 25,
+    "mcc": "combustible",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T20:43:19Z",
+    "amount": 218.5,
+    "merchant_id": 70,
+    "mcc": "farmacia",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-26T10:48:24Z",
+    "amount": 63.16,
+    "merchant_id": 102,
+    "mcc": "farmacia",
+    "channel": "recurrente",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T10:38:35Z",
+    "amount": 80.28,
+    "merchant_id": 237,
+    "mcc": "ferreteria",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T16:13:28Z",
+    "amount": 34.17,
+    "merchant_id": 5,
+    "mcc": "transporte",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-29T09:44:18Z",
+    "amount": 92.75,
+    "merchant_id": 35,
+    "mcc": "combustible",
+    "channel": "POS",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-30T12:42:53Z",
+   "amount": 139.42,
+   "merchant_id": 87,
+   "mcc": "farmacia",
+   "channel": "online",
+   "country": "GT"
+  }
+ },
+ {
+  "id": "f1_golpe_1",
+  "titulo": "Sondeo y golpe #1",
+  "descripcion": "El atacante prueba la tarjeta con montos pequeños y crecientes y luego hace una compra grande.",
+  "etiqueta_real": "fraude",
+  "card_id": 1411,
+  "historial": [
+   {
+    "ts": "2026-03-22T17:21:37Z",
+    "amount": 72.65,
+    "merchant_id": 48,
+    "mcc": "viajes",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-22T20:33:47Z",
+    "amount": 239.95,
+    "merchant_id": 122,
+    "mcc": "salud",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T20:43:14Z",
+    "amount": 154.37,
+    "merchant_id": 101,
+    "mcc": "salud",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T15:06:17Z",
+    "amount": 100.26,
+    "merchant_id": 180,
+    "mcc": "viajes",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-26T17:35:33Z",
+    "amount": 77.53,
+    "merchant_id": 286,
+    "mcc": "hogar",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-26T18:10:15Z",
+    "amount": 148.41,
+    "merchant_id": 122,
+    "mcc": "hogar",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-26T22:51:13Z",
+    "amount": 72.77,
+    "merchant_id": 58,
+    "mcc": "educacion",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T15:09:35Z",
+    "amount": 216.06,
+    "merchant_id": 181,
+    "mcc": "viajes",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T11:21:12.429316247Z",
+    "amount": 8.55,
+    "merchant_id": 169,
+    "mcc": "transporte",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T11:26:57.178902150Z",
+    "amount": 28.31,
+    "merchant_id": 39,
+    "mcc": "ferreteria",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T11:31:34.910595063Z",
+    "amount": 29.1,
+    "merchant_id": 171,
+    "mcc": "farmacia",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T11:33:22Z",
+    "amount": 84.86,
+    "merchant_id": 178,
+    "mcc": "hogar",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T11:42:22.667714787Z",
+    "amount": 31.48,
+    "merchant_id": 118,
+    "mcc": "ferreteria",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T11:52:38.562680127Z",
+    "amount": 32.5,
+    "merchant_id": 227,
+    "mcc": "transporte",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-28T12:12:20.163588734Z",
+    "amount": 35.78,
+    "merchant_id": 269,
+    "mcc": "educacion",
+    "channel": "POS",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-28T12:42:12.100260543Z",
+   "amount": 2508.78,
+   "merchant_id": 263,
+   "mcc": "combustible",
+   "channel": "POS",
+   "country": "GT"
+  }
+ },
+ {
+  "id": "f1_golpe_2",
+  "titulo": "Sondeo y golpe #2",
+  "descripcion": "El atacante prueba la tarjeta con montos pequeños y crecientes y luego hace una compra grande.",
+  "etiqueta_real": "fraude",
+  "card_id": 2535,
+  "historial": [
+   {
+    "ts": "2026-03-21T09:17:39Z",
+    "amount": 197.06,
+    "merchant_id": 67,
+    "mcc": "belleza",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-22T19:44:12Z",
+    "amount": 168.27,
+    "merchant_id": 244,
+    "mcc": "supermercado",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-24T13:22:20Z",
+    "amount": 205.55,
+    "merchant_id": 200,
+    "mcc": "entretenimiento",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T06:45:14Z",
+    "amount": 248.67,
+    "merchant_id": 130,
+    "mcc": "telecom",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T15:31:48.863756261Z",
+    "amount": 12.3,
+    "merchant_id": 97,
+    "mcc": "educacion",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T15:35:00.131654984Z",
+    "amount": 23.65,
+    "merchant_id": 232,
+    "mcc": "ferreteria",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T15:47:24.735109498Z",
+    "amount": 31.62,
+    "merchant_id": 25,
+    "mcc": "viajes",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-27T15:51:47.857938650Z",
+    "amount": 32.5,
+    "merchant_id": 32,
+    "mcc": "restaurante",
+    "channel": "online",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-27T16:20:51.332661060Z",
+   "amount": 3396.59,
+   "merchant_id": 88,
+   "mcc": "ropa",
+   "channel": "online",
+   "country": "GT"
+  }
+ },
+ {
+  "id": "f2_1",
+  "titulo": "Ráfaga en cajero #1",
+  "descripcion": "Varios retiros de cajero seguidos en poco tiempo.",
+  "etiqueta_real": "fraude",
+  "card_id": 211,
+  "historial": [
+   {
+    "ts": "2026-03-18T19:01:55Z",
+    "amount": 479.56,
+    "merchant_id": 126,
+    "mcc": "educacion",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-20T19:20:02Z",
+    "amount": 239.18,
+    "merchant_id": 126,
+    "mcc": "viajes",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-21T18:18:04Z",
+    "amount": 339.08,
+    "merchant_id": 72,
+    "mcc": "farmacia",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T15:25:46.550223301Z",
+    "amount": 1963.86,
+    "merchant_id": 48,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T15:32:08.926836827Z",
+    "amount": 1964.02,
+    "merchant_id": 48,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T15:38:13.540888472Z",
+    "amount": 2034.93,
+    "merchant_id": 48,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-25T15:43:56.428178066Z",
+    "amount": 2045.19,
+    "merchant_id": 48,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-25T15:47:53.673443866Z",
+   "amount": 1948.13,
+   "merchant_id": 48,
+   "mcc": "transporte",
+   "channel": "ATM",
+   "country": "GT"
+  }
+ },
+ {
+  "id": "f2_2",
+  "titulo": "Ráfaga en cajero #2",
+  "descripcion": "Varios retiros de cajero seguidos en poco tiempo.",
+  "etiqueta_real": "fraude",
+  "card_id": 1422,
+  "historial": [
+   {
+    "ts": "2026-03-19T13:40:04Z",
+    "amount": 267.05,
+    "merchant_id": 202,
+    "mcc": "ropa",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-19T19:19:17Z",
+    "amount": 250.65,
+    "merchant_id": 87,
+    "mcc": "farmacia",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-20T22:51:42Z",
+    "amount": 387.64,
+    "merchant_id": 75,
+    "mcc": "supermercado",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-21T12:21:58Z",
+    "amount": 391.79,
+    "merchant_id": 286,
+    "mcc": "salud",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T04:57:49.919762492Z",
+    "amount": 15.25,
+    "merchant_id": 91,
+    "mcc": "combustible",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T05:17:12.400907660Z",
+    "amount": 7.0,
+    "merchant_id": 58,
+    "mcc": "supermercado",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T05:20:12.956007963Z",
+    "amount": 12.84,
+    "merchant_id": 17,
+    "mcc": "belleza",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T05:28:05.535066750Z",
+    "amount": 10.19,
+    "merchant_id": 126,
+    "mcc": "electronica",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T05:39:12.702027912Z",
+    "amount": 6.18,
+    "merchant_id": 81,
+    "mcc": "combustible",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T05:53:46.212102781Z",
+    "amount": 13.61,
+    "merchant_id": 89,
+    "mcc": "educacion",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T06:16:10.133351881Z",
+    "amount": 4827.11,
+    "merchant_id": 69,
+    "mcc": "educacion",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-23T22:27:00Z",
+    "amount": 435.44,
+    "merchant_id": 95,
+    "mcc": "supermercado",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-24T17:59:53.601838546Z",
+    "amount": 1009.21,
+    "merchant_id": 75,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-24T18:06:43.102642823Z",
+    "amount": 1025.73,
+    "merchant_id": 75,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-24T18:15:27.397656065Z",
+    "amount": 996.84,
+    "merchant_id": 75,
+    "mcc": "transporte",
+    "channel": "ATM",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-24T18:22:11.450916354Z",
+   "amount": 1011.79,
+   "merchant_id": 75,
+   "mcc": "transporte",
+   "channel": "ATM",
+   "country": "GT"
+  }
+ },
+ {
+  "id": "f3_1",
+  "titulo": "Monto atípico aislado #1",
+  "descripcion": "Una compra muy por encima de lo que la tarjeta suele gastar.",
+  "etiqueta_real": "fraude",
+  "card_id": 1576,
+  "historial": [
+   {
+    "ts": "2026-03-17T14:42:10Z",
+    "amount": 42.46,
+    "merchant_id": 60,
+    "mcc": "transporte",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-18T12:56:53Z",
+    "amount": 20.2,
+    "merchant_id": 20,
+    "mcc": "ferreteria",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-19T10:40:26Z",
+    "amount": 60.19,
+    "merchant_id": 4,
+    "mcc": "farmacia",
+    "channel": "ATM",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-19T19:11:29Z",
+    "amount": 48.4,
+    "merchant_id": 207,
+    "mcc": "telecom",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-20T07:33:48Z",
+    "amount": 42.71,
+    "merchant_id": 20,
+    "mcc": "transporte",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-21T08:33:35Z",
+    "amount": 94.12,
+    "merchant_id": 20,
+    "mcc": "transporte",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-21T12:28:02Z",
+    "amount": 29.78,
+    "merchant_id": 18,
+    "mcc": "farmacia",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-21T18:59:24Z",
+    "amount": 38.68,
+    "merchant_id": 18,
+    "mcc": "transporte",
+    "channel": "POS",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-23T19:20:28.573609087Z",
+   "amount": 329.0,
+   "merchant_id": 195,
+   "mcc": "farmacia",
+   "channel": "online",
+   "country": "ES"
+  }
+ },
+ {
+  "id": "f3_2",
+  "titulo": "Monto atípico aislado #2",
+  "descripcion": "Una compra muy por encima de lo que la tarjeta suele gastar.",
+  "etiqueta_real": "fraude",
+  "card_id": 3265,
+  "historial": [
+   {
+    "ts": "2026-03-14T10:36:12Z",
+    "amount": 128.6,
+    "merchant_id": 295,
+    "mcc": "ropa",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-14T13:44:17Z",
+    "amount": 123.92,
+    "merchant_id": 227,
+    "mcc": "salud",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-14T14:25:31Z",
+    "amount": 35.89,
+    "merchant_id": 54,
+    "mcc": "supermercado",
+    "channel": "online",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-15T15:08:08Z",
+    "amount": 111.18,
+    "merchant_id": 194,
+    "mcc": "restaurante",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-18T17:32:41Z",
+    "amount": 118.93,
+    "merchant_id": 240,
+    "mcc": "entretenimiento",
+    "channel": "POS",
+    "country": "GT"
+   },
+   {
+    "ts": "2026-03-19T17:54:29Z",
+    "amount": 92.65,
+    "merchant_id": 248,
+    "mcc": "farmacia",
+    "channel": "POS",
+    "country": "GT"
+   }
+  ],
+  "transaccion": {
+   "ts": "2026-03-20T20:25:00.909151571Z",
+   "amount": 1067.07,
+   "merchant_id": 123,
+   "mcc": "transporte",
+   "channel": "online",
+   "country": "ES"
+  }
+ }
+]

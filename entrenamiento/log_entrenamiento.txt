@@ -1,0 +1,22 @@
+[20:28:57] Hipótesis congeladas: sha256=09fed22d6ba8…  inicio=2026-11-09T02:28:57+00:00
+[20:28:57] Modo dev: False  tarjetas=4000  K=3
+[20:29:31] Datos: 419,821 eventos, train/val/test = 293,874/62,973/62,974
+[20:29:49] A (LightGBM) AUC-PR val por semilla: [0.8317, 0.8312, 0.8357]
+[20:31:05] B_K3 semilla 7: AUC-PR val = 0.7490 (75 s)
+[20:32:42] C_K3 semilla 7: AUC-PR val = 0.7746 (97 s)
+[20:33:29] B_K3 semilla 13: AUC-PR val = 0.7449 (47 s)
+[20:34:49] C_K3 semilla 13: AUC-PR val = 0.7858 (80 s)
+[20:35:51] B_K3 semilla 29: AUC-PR val = 0.7433 (61 s)
+[20:38:26] C_K3 semilla 29: AUC-PR val = 0.7857 (155 s)
+[20:38:26] H1 (B_K3 > B_K20): mejora +0.0319 → ÉXITO
+[20:38:26] H2 (C_K3 ≥ A):     dif -0.0509 → NO
+[20:38:26] Campeón: A   Retador (sombra): C_K3
+[20:38:26] campeon=A semilla 29: u*=0.0160  revisión desde 0.0023  costo val Q257,760
+[20:38:26] retador=C_K3 semilla 13: u*=0.0390  revisión desde 0.0212  costo val Q408,780
+[20:38:28] Permutación (validación):
+variante  auc_pr_B  auc_pr_A  caida_B
+original  0.785764  0.835726 0.000000
+    full  0.660927  0.835726 0.124836
+ history  0.760933  0.835726 0.024831
+[20:38:29] TEST (fecha 2026-11-09T02:38:28+00:00): {"A": {"auc_pr": 0.8568, "costo_Q": 261420.0}, "C_K3": {"auc_pr": 0.7894, "costo_Q": 364800.0}}
+[20:38:29] Listo en 9.5 min → /home/claude/proyecto-final/artefactos/produccion
