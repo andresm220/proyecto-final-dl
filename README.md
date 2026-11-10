@@ -61,7 +61,7 @@ monitoreo— si el modelo se mantiene, se reentrena o se promueve al retador.
 | Reentrenamiento `K = 3` y paquete de producción | 8 nov | `artefactos/produccion/`, `entrenamiento/log_entrenamiento.txt` | June Herrera |
 | Servicio: API, demo, registro y monitoreo | 8 nov | `servicio/` | Andrés Mazariegos |
 | Pruebas de contrato y de paridad | 8 nov | `tests/` (76 pruebas) | June Herrera |
-| Hipótesis H3 (ensamble), registrada antes de calcularlo | 8 nov, 21:41 GT | adenda en `docs/HIPOTESIS.md` (commit `c283851`) | Andrés Mazariegos |
+| Hipótesis H3 (ensamble), registrada antes de calcularlo | 8 nov, 21:41 GT | adenda en `docs/HIPOTESIS.md` (commit `a99adfd`) | Andrés Mazariegos |
 | Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Ambos |
 | Despliegue en Google Cloud Run | 9 nov | URL pública | Andrés Mazariegos |
 | Tráfico de prueba y evidencias | 9 nov | `evidencias/`, panel con datos | June Herrera |
@@ -155,7 +155,7 @@ partición, semillas e hiperparámetros para poder atribuir cualquier cambio a `
 Las hipótesis, métricas y criterios se escribieron **antes de entrenar** en
 [`docs/HIPOTESIS.md`](docs/HIPOTESIS.md): H1 y H2 a las 02:26 UTC, antes de entrenar
 cualquier modelo; H3 (ensamble) a las 03:41 UTC, antes de calcular cualquier puntaje del
-ensamble, en un commit propio (`c283851`). El entrenamiento guarda el SHA-256 del
+ensamble, en un commit propio (`a99adfd`). El entrenamiento guarda el SHA-256 del
 archivo (`319d31a2…`) en `artefactos/produccion/metadata.json`.
 
 **Métrica:** AUC-PR de validación, media de 3 semillas `(7, 13, 29)`. AUC-PR y no
