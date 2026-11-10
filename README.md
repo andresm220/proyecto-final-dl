@@ -54,7 +54,7 @@ monitoreo— si el modelo se mantiene, se reentrena o se promueve al retador.
 
 ## 2. Planificación
 
-| Etapa | Fecha | Entregable | Responsable _(confirmar)_ |
+| Etapa | Fecha | Entregable | Responsable |
 |---|---|---|---|
 | Selección del modelo de origen y revisión del P1 | 8 nov | Decisión: P1 sobre P2 (GAN) y P3 (Text-to-SQL) | Ambos |
 | Hipótesis y criterio de éxito congelados | 8 nov, 20:26 GT | [`docs/HIPOTESIS.md`](docs/HIPOTESIS.md) (SHA-256 en metadata) | Andrés Mazariegos |
@@ -478,10 +478,17 @@ servicio (API, inferencia, registro, monitoreo), la interfaz web, las pruebas, e
 simulador de tráfico, el Dockerfile y el borrador de este README y de la presentación.
 Las hipótesis y la regla de decisión se discutieron y fijaron antes de entrenar.
 
-_Completar por cada integrante antes de entregar — qué usó y qué verificó personalmente:_
 
-- **Andrés Mazariegos** — _______
-- **June Herrera** — _______
+- **Andrés Mazariegos** — Usé Claude para revisar el código del Proyecto 1 y decidir qué llevar a producción, para redactar el servicio (API, inferencia, registro y panel de monitoreo) y para desplegarlo. Durante el despliegue,
+  Claude preparó el entorno con Python 3.13 y corrió las 76 pruebas. También publicó el repositorio en GitHub y
+  desplegó el servicio en Google Cloud Run. Elegimos Cloud Run porque Hugging Face ya cobra por los Spaces con
+  Docker. Claude además corrió el tráfico de prueba contra la URL pública y actualizó el README y la presentación
+  con las cifras reales. Yo fijé las hipótesis H1 y H2 antes de entrenar y la H3 antes de calcular el ensamble.
+  Aprobé cada paso que usó mis cuentas y comprobé en el servicio publicado que /salud, la demo y el panel
+  respondieran como esperábamos.
 
-Cada integrante debe poder explicar cualquier parte del código; la sección de decisiones
-(§6) y la de hipótesis (§5) son las que más probablemente salgan en preguntas.
+- **June Herrera** — Usé Claude para redactar el script de entrenamiento con K = 3, generar el paquete de producción
+  (artefactos/produccion/), escribir las pruebas de contrato y de paridad, y preparar el simulador de tráfico. La
+  decisión de promover el ensamble se tomó entre los dos y está documentada en docs/DECISION.md.
+
+
