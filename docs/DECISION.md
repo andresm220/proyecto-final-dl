@@ -15,7 +15,8 @@ pierde en costo, así que **H3 no se cumple** y, por la regla, A queda como camp
 Los artefactos de `artefactos/produccion/` reflejan exactamente eso
 (`roles.campeon = A`, `roles.retador = E`) y no se modificaron.
 
-Prueba, evaluada una sola vez y después de congelar todo:
+Prueba, evaluada después de congelar todo (segunda evaluación; la primera, a las 02:38 UTC,
+fue de A y C_K3 y dio el mismo resultado para A):
 
 | Prueba (13.4 días, 703 fraudes) | AUC-PR | Recall al bloquear | Costo |
 |---|---:|---:|---:|

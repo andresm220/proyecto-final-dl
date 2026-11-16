@@ -3,7 +3,7 @@
 **Monitoreo transaccional del Banco del Altiplano: un ensamble LightGBM + GRU decide, con monitoreo campeón/retador**
 
 Deep Learning y Sistemas Inteligentes 2026 · Universidad del Valle de Guatemala · Kevin Recinos
-**Integrantes:** Andrés Mazariegos (21749) · June Herrera
+**Integrantes:** Andrés Mazariegos (21749) · June Herrera (231038) · Hansel López (19026)
 **Modelo de origen:** [Proyecto 1 — Monitoreo transaccional](https://github.com/UVG-Work/Proyecto-1-Deeplearning/tree/feat/monitoreo-transaccional)
 
 | | |
@@ -56,17 +56,17 @@ monitoreo— si el modelo se mantiene, se reentrena o se promueve al retador.
 
 | Etapa | Fecha | Entregable | Responsable |
 |---|---|---|---|
-| Selección del modelo de origen y revisión del P1 | 8 nov | Decisión: P1 sobre P2 (GAN) y P3 (Text-to-SQL) | Ambos |
+| Selección del modelo de origen y revisión del P1 | 8 nov | Decisión: P1 sobre P2 (GAN) y P3 (Text-to-SQL) | Todo el trío |
 | Hipótesis y criterio de éxito congelados | 8 nov, 20:26 GT | [`docs/HIPOTESIS.md`](docs/HIPOTESIS.md) (SHA-256 en metadata) | Andrés Mazariegos |
 | Reentrenamiento `K = 3` y paquete de producción | 8 nov | `artefactos/produccion/`, `entrenamiento/log_entrenamiento.txt` | June Herrera |
 | Servicio: API, demo, registro y monitoreo | 8 nov | `servicio/` | Andrés Mazariegos |
 | Pruebas de contrato y de paridad | 8 nov | `tests/` (76 pruebas) | June Herrera |
 | Hipótesis H3 (ensamble), registrada antes de calcularlo | 8 nov, 21:41 GT | adenda en `docs/HIPOTESIS.md` (commit `a99adfd`) | Andrés Mazariegos |
-| Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Ambos |
+| Decisión de producción: promover el ensamble | 8 nov, 21:50 GT | [`docs/DECISION.md`](docs/DECISION.md) | Todo el trío |
 | Despliegue en Google Cloud Run | 9 nov | URL pública | Andrés Mazariegos |
 | Tráfico de prueba y evidencias | 9 nov | `evidencias/`, panel con datos | June Herrera |
-| Presentación al comité | 9 / 13 nov | `docs/presentacion.pdf` | Ambos |
-| Ajustes y versión final del repositorio | hasta 15 nov, 23:59 | última versión en GitHub | Ambos |
+| Presentación al comité | 9 / 13 nov | `docs/presentacion.pdf` | Todo el trío |
+| Ajustes y versión final del repositorio | hasta 15 nov, 23:59 | última versión en GitHub | Todo el trío |
 
 Por qué en este orden: la hipótesis se escribió **antes** de entrenar (el criterio no
 puede moverse después de ver resultados), y la prueba de paridad se escribió **antes**
@@ -200,8 +200,10 @@ sola línea del Dockerfile (`PROMOVER_RETADOR=1`). Quitarla devuelve el servicio
 regla técnica sin reentrenar. A queda en sombra precisamente para que el panel diga, con
 tráfico real, si la decisión se sostiene.
 
-**Prueba, evaluada una sola vez** (2026-11-09 02:38 UTC, con todo congelado; 13.4 días,
-62,974 transacciones, 703 fraudes):
+**Prueba** (13.4 días, 62,974 transacciones, 703 fraudes), siempre con modelos,
+calibradores y umbrales ya congelados en validación. Se evaluó dos veces: a las 02:38 UTC
+en la primera corrida (A y C_K3) y a las 03:44 UTC después de registrar H3 (A y E). A dio
+exactamente lo mismo en las dos (0.857, Q261,420):
 
 | | AUC-PR | Recall al bloquear | Precisión | Costo en prueba | Ahorro mensual vs. sin modelo |
 |---|---:|---:|---:|---:|---:|
@@ -429,10 +431,13 @@ curl -X POST https://monitoreo-transaccional-837352528666.us-central1.run.app/pr
        "transaccion": {"ts":"2026-03-28T12:42:12Z","amount":2508.78,"merchant_id":263,"mcc":"combustible","channel":"POS","country":"GT"}}'
 ```
 
-Respuesta (abreviada): `{"risk_score": 0.58, "decision": "block", "umbral_bloqueo": 0.022,
-"componentes": {"A": 0.989, "C_K3": 0.987}, "motivos": [...],
-"retador": {"familia": "A", "risk_score": 0.53, "decision": "block"},
-"model_version": "20261109-A-vs-E+promovido", "latencia_ms": 46}`
+Respuesta (abreviada): `{"risk_score": 1.0, "decision": "block", "umbral_bloqueo": 0.022,
+"componentes": {"A": 0.998, "C_K3": 1.0}, "motivos": [...],
+"retador": {"familia": "A", "risk_score": 0.98, "decision": "block"},
+"model_version": "20261109-A-vs-E+promovido", "latencia_ms": 71}`
+
+Con solo 2 transacciones de historia el monto es 136 veces la media de la tarjeta. El
+mismo caso en la demo, con las 15 transacciones de historia, da un riesgo de 0.58.
 
 **Estructura**
 
