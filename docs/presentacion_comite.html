@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¿Mantenemos este modelo en producción?</title>
+
+<!-- Tipografía: Fraunces (titulares), Schibsted Grotesk (texto), JetBrains Mono (cifras) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=JetBrains+Mono:wght@400;500;600;700&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+
+<style>
+/* ===========================================
+   TEMA: "Libro mayor" — papel de registro contable, tinta, sellos.
+   Cambiar estos tokens cambia toda la presentación.
+   Semántica fija: vino = bloquear/fraude · ámbar = revisar ·
+   verde = aprobar · pizarra = GRU / ensamble · grafito = LightGBM.
+   =========================================== */
+:root {
+    --paper: #F1E9DA;
+    --card: #FBF7EF;
+    --ink: #1D1A16;
+    --ink-2: #5F584C;
+    --ink-3: #6F675A;
+    --review-ink: #82520F;
+    --rule: #D3C5AC;
+    --block: #9B1C2E;
+    --block-soft: #F2D9DC;
+    --review: #B4751A;
+    --review-soft: #F4E3C4;
+    --approve: #2F6B4A;
+    --approve-soft: #DCE9DF;
+    --dl: #2B4C72;
+    --dl-2: #86A0C0;
+    --dl-soft: #DCE4EE;
+    --lgb: #6E675B;
+    --mute: #CBBFA9;
+    --dark: #191612;
+
+    --f-display: 'Fraunces', serif;
+    --f-body: 'Schibsted Grotesk', sans-serif;
+    --f-mono: 'JetBrains Mono', monospace;
+
+    --stage-bg: #0d0b09;
+    --slide-bg: var(--paper);
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES (viewport-base.css, completo)
+   =========================================== */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+@media print {
+    html,
+    body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+    }
+    .deck-viewport {
+        position: static;
+        overflow: visible;
+        background: #fff;
+    }
+    .deck-stage {
+        position: static;
+        width: auto;
+        height: auto;
+        transform: none !important;
+        background: none;
+    }
+    .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+    }
+    .slide:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+    .deck-controls {
+        display: none !important;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* ===========================================
+   FONDO DE PAPEL: renglones tenues + doble margen rojo de libro mayor
+   =========================================== */
+.slide {
+    font-family: var(--f-body);
+    color: var(--ink);
+    font-size: 28px;
+    background:
+        radial-gradient(ellipse 70% 60% at 12% 0%, rgba(255, 255, 255, 0.55), transparent 70%),
+        radial-gradient(ellipse 60% 50% at 100% 100%, rgba(155, 120, 70, 0.10), transparent 70%),
+        repeating-linear-gradient(to bottom, transparent 0 53px, rgba(120, 95, 60, 0.07) 53px 54px),
+        var(--paper);
+}
+.slide::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 108px;
+    width: 9px;
+    border-left: 2px solid rgba(155, 28, 46, 0.32);
+    border-right: 2px solid rgba(155, 28, 46, 0.32);
+}
+
+/* ===========================================
+   ESTRUCTURA DE DIAPOSITIVA DE CONTENIDO
+   folio (sección) → titular → cuerpo → pie
+   =========================================== */
+.frame {
+    position: absolute;
+    left: 170px;
+    right: 110px;
+    top: 64px;
+    bottom: 90px;
+    display: flex;
+    flex-direction: column;
+}
+.folio {
+    display: flex;
+    justify-content: space-between;
+    font: 500 19px/1 var(--f-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    padding-bottom: 18px;
+    border-bottom: 4px double var(--rule);
+}
+.folio .sec { color: var(--block); font-weight: 700; }
+h2 {
+    font-family: var(--f-display);
+    font-variation-settings: "opsz" 144;
+    font-weight: 600;
+    font-size: 72px;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin-top: 36px;
+}
+h2 em { font-style: italic; font-weight: 500; color: var(--block); }
+.body { position: relative; flex: 1; margin-top: 52px; min-height: 0; }
+.foot, .pg {
+    position: absolute;
+    bottom: 38px;
+    font: 500 18px/1 var(--f-mono);
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+}
+.foot { left: 170px; }
+.pg { right: 110px; }
+
+/* ===========================================
+   PIEZAS REUTILIZABLES
+   =========================================== */
+.lbl {
+    font: 600 19px/1.2 var(--f-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.mono { font-family: var(--f-mono); }
+.card {
+    background: var(--card);
+    border: 1.5px solid var(--rule);
+    border-radius: 6px;
+    padding: 30px 34px;
+    box-shadow: 7px 7px 0 rgba(29, 26, 22, 0.06);
+}
+.pill {
+    display: inline-block;
+    padding: 6px 18px;
+    border-radius: 999px;
+    font: 700 22px/1.2 var(--f-body);
+    white-space: nowrap;
+}
+.pill.ok { background: var(--approve-soft); color: var(--approve); }
+.pill.no { background: var(--block-soft); color: var(--block); }
+.pill.warn { background: var(--review-soft); color: var(--review-ink); }
+.pill.dl { background: var(--dl-soft); color: var(--dl); }
+.chip {
+    display: inline-block;
+    font: 500 22px/1 var(--f-mono);
+    padding: 12px 18px;
+    border: 1.5px solid var(--rule);
+    border-radius: 4px;
+    background: var(--card);
+    color: var(--ink);
+    white-space: nowrap;
+}
+.c-block { color: var(--block); }
+.c-review { color: var(--review-ink); }
+.c-approve { color: var(--approve); }
+.c-dl { color: var(--dl); }
+.c-mute { color: var(--ink-3); }
+
+svg { font-family: var(--f-body); fill: var(--ink); }
+svg .m { font-family: var(--f-mono); }
+
+/* ===========================================
+   ANIMACIONES — entran al activar la diapositiva (.visible)
+   --d escalona cada elemento. Barras crecen desde su base.
+   =========================================== */
+.reveal {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+    transition-delay: var(--d, 0s);
+}
+.slide.visible .reveal { opacity: 1; transform: none; }
+
+.grow {
+    transform: scaleX(0);
+    transform-origin: left center;
+    transform-box: fill-box;
+    transition: transform 1.1s var(--ease);
+    transition-delay: var(--d, 0.3s);
+}
+.rise {
+    transform: scaleY(0);
+    transform-origin: center bottom;
+    transform-box: fill-box;
+    transition: transform 1.1s var(--ease);
+    transition-delay: var(--d, 0.3s);
+}
+.slide.visible .grow,
+.slide.visible .rise { transform: none; }
+
+/* ===========================================
+   PORTADA Y CIERRE (tinta oscura + sello)
+   =========================================== */
+.s-dark {
+    --paper: #191612;
+    color: #F1E9DA;
+    background:
+        radial-gradient(ellipse 60% 70% at 85% 20%, rgba(155, 28, 46, 0.22), transparent 70%),
+        repeating-linear-gradient(to bottom, transparent 0 53px, rgba(241, 233, 218, 0.045) 53px 54px),
+        #191612;
+}
+.s-dark::before { border-color: rgba(224, 98, 111, 0.45); }
+.title-wrap { position: absolute; left: 170px; right: 110px; top: 190px; }
+.kicker {
+    font: 600 21px/1 var(--f-mono);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #C9B99C;
+}
+h1 {
+    font-family: var(--f-display);
+    font-variation-settings: "opsz" 144;
+    font-weight: 600;
+    font-size: 148px;
+    line-height: 0.96;
+    letter-spacing: -0.025em;
+    margin-top: 40px;
+}
+h1 em { font-style: italic; font-weight: 400; color: #E0626F; }
+.lede { font-size: 34px; color: #C9B99C; margin-top: 40px; }
+.team { display: flex; gap: 56px; margin-top: 110px; font-size: 32px; font-weight: 600; }
+.team b { font: 500 24px var(--f-mono); color: #C9B99C; margin-left: 10px; }
+.meta { margin-top: 22px; font: 500 21px var(--f-mono); color: #8D8474; letter-spacing: 0.06em; }
+
+/* Sello de goma: el giro vive en .stamp, la animación en .stamp-in */
+.stamp { position: absolute; right: 150px; top: 120px; transform: rotate(-9deg); }
+.stamp-in {
+    border: 7px double #E0626F;
+    color: #E0626F;
+    padding: 22px 34px 18px;
+    font: 800 46px/1 var(--f-mono);
+    letter-spacing: 0.08em;
+    text-align: center;
+    opacity: 0;
+    transform: scale(1.7);
+    transition: opacity 0.25s ease 1.1s, transform 0.45s cubic-bezier(0.5, 1.6, 0.4, 1) 1.1s;
+}
+.stamp-in small { display: block; font: 600 17px/1 var(--f-mono); letter-spacing: 0.16em; margin-top: 12px; }
+.slide.visible .stamp-in { opacity: 0.92; transform: none; }
+
+/* ===========================================
+   PIEZAS POR DIAPOSITIVA
+   =========================================== */
+
+/* 02 · Problemática */
+.huge { font-family: var(--f-display); font-variation-settings: "opsz" 144; font-weight: 700; line-height: 0.95; letter-spacing: -0.02em; }
+.sq { display: flex; gap: 8px; margin-top: 18px; }
+.sq i { width: 22px; height: 22px; background: var(--review); display: block; border-radius: 2px; }
+.strip { display: flex; height: 100px; border-radius: 4px; overflow: hidden; border: 1.5px solid var(--ink); }
+.strip div { display: flex; align-items: center; justify-content: center; font: 700 30px var(--f-body); color: #fff; }
+.ticks { position: relative; height: 34px; font: 500 21px var(--f-mono); color: var(--ink-2); margin-top: 10px; }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.who-row { display: flex; font-size: 22px; color: var(--ink-2); margin-top: 4px; }
+.who-row div { text-align: center; }
+.users { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.users .card { padding: 24px 26px; }
+.users .v { font: 700 38px/1.1 var(--f-mono); margin: 12px 0 6px; }
+.users .s { font-size: 22px; color: var(--ink-2); }
+
+/* 03 · Planificación (Gantt) */
+.gantt { display: grid; grid-template-columns: 520px 896px 224px; }
+.gantt .h { font: 600 20px var(--f-mono); color: var(--ink-2); letter-spacing: 0.08em; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.days { display: grid; grid-template-columns: repeat(8, 112px); }
+.days span { text-align: center; }
+.g-row { display: contents; }
+.g-row > div { height: 66px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; }
+.g-row .task { font-size: 27px; font-weight: 500; }
+.g-row .lane { position: relative; background: repeating-linear-gradient(to right, transparent 0 111px, rgba(120, 95, 60, 0.12) 111px 112px); }
+.bar {
+    position: absolute;
+    height: 38px;
+    top: 14px;
+    border-radius: 3px;
+    background: var(--ink);
+    color: #fff;
+    font: 600 17px/38px var(--f-mono);
+    padding-left: 10px;
+    white-space: nowrap;
+}
+.bar.dl { background: var(--dl); }
+.bar.tr { background: var(--block); }
+.owners { gap: 8px; justify-content: flex-end; }
+.av {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font: 700 18px var(--f-mono); color: #fff; border: 3px solid var(--paper);
+}
+.av.am { background: var(--ink); }
+.av.jh { background: var(--dl); }
+.av.hl { background: var(--approve); }
+.trio .av + .av { margin-left: -16px; }
+.legend { display: flex; gap: 44px; margin-top: 30px; font-size: 24px; align-items: center; color: var(--ink-2); }
+.legend .av { width: 40px; height: 40px; font-size: 15px; margin-right: 10px; }
+
+/* 04 · Supuestos */
+.cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.cols3 h3 { font-family: var(--f-display); font-weight: 600; font-size: 48px; margin-bottom: 18px; }
+.item { padding: 18px 0; border-top: 1px solid var(--rule); }
+.item .f { font: 700 46px/1.05 var(--f-mono); }
+.item .k { font-size: 24px; color: var(--ink-2); margin-top: 6px; }
+.banner {
+    margin-top: 40px;
+    padding: 24px 32px;
+    border-left: 8px solid var(--block);
+    background: var(--block-soft);
+    font-size: 28px;
+}
+
+/* 06 · Veredictos de hipótesis */
+.verdicts { display: flex; flex-direction: column; gap: 20px; }
+.verdicts .card { padding: 22px 28px; }
+.verdicts .t { display: flex; justify-content: space-between; align-items: center; }
+.verdicts .n { font: 700 34px var(--f-display); }
+.verdicts .c { font: 500 20px/1.35 var(--f-mono); color: var(--ink-2); margin-top: 8px; }
+.verdicts .r { font: 700 28px var(--f-mono); margin-top: 8px; }
+
+/* 08 / 13 · Barras horizontales en HTML */
+.hbars { display: grid; grid-template-columns: 330px 1fr; row-gap: 26px; align-items: center; }
+.hbars .l { font-size: 27px; font-weight: 500; }
+.hbars .l small { display: block; font-size: 20px; color: var(--ink-2); font-weight: 400; }
+.hb { display: flex; align-items: center; gap: 18px; }
+.hb i { display: block; height: 56px; border-radius: 3px; }
+.hb b { font: 700 28px var(--f-mono); white-space: nowrap; }
+
+/* 09 · Regla vs negocio */
+.versus { display: grid; grid-template-columns: 1fr 120px 1fr; align-items: stretch; }
+.versus .card { padding: 34px 40px; }
+.versus .big { font: 700 84px/1 var(--f-display); margin: 26px 0 20px; }
+.versus .arrow { display: flex; align-items: center; justify-content: center; font: 400 80px var(--f-display); color: var(--ink-3); }
+.price { margin-top: 70px; }
+.track { position: relative; height: 90px; background: var(--approve); border-radius: 4px; margin-top: 18px; }
+.track .sliver { position: absolute; right: 0; top: -14px; bottom: -14px; width: 4px; background: var(--block); }
+.track .tag { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); color: #fff; font: 600 24px var(--f-mono); }
+.callout { position: absolute; right: -6px; top: 92px; text-align: right; }
+
+/* 10 · Arquitectura */
+.arch { display: grid; grid-template-columns: 350px 80px 350px 80px 350px 80px 350px; }
+.arch .col { display: flex; flex-direction: column; gap: 16px; }
+.arch .ch { font: 700 20px var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--block); padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+.box { background: var(--card); border: 1.5px solid var(--rule); border-radius: 5px; padding: 16px 20px; font-size: 23px; line-height: 1.25; min-height: 92px; display: flex; flex-direction: column; justify-content: center; }
+.box b { font-weight: 700; }
+.box small { font: 500 18px var(--f-mono); color: var(--ink-2); margin-top: 4px; }
+.box.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.box.split { flex-direction: row; padding: 0; overflow: hidden; }
+.box.split div { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 14px 16px; }
+.box.split div + div { border-left: 1.5px solid var(--rule); }
+.flowarr { display: flex; align-items: center; justify-content: center; font: 400 54px var(--f-display); color: var(--ink-3); padding-top: 40px; }
+.actors { display: flex; gap: 22px; margin-top: 34px; }
+.tools { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+
+/* 11 / 14 · Capturas */
+.shot {
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 10px 10px 0 rgba(29, 26, 22, 0.10);
+}
+.shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; max-height: none; }
+.endp { display: grid; grid-template-columns: 250px 1fr; row-gap: 0; }
+.endp div { padding: 16px 0; border-bottom: 1px solid var(--rule); font-size: 26px; }
+.endp .p { font: 700 26px var(--f-mono); color: var(--dl); }
+
+/* 12 · Pruebas */
+.tri { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 34px; }
+.tri .card { padding: 34px 36px; }
+.tri .v { font: 700 92px/1 var(--f-display); margin: 22px 0 18px; letter-spacing: -0.02em; }
+.tri .k { font-size: 24px; color: var(--ink-2); line-height: 1.4; }
+.stack { display: flex; height: 54px; border-radius: 3px; overflow: hidden; margin: 10px 0 22px; }
+.stack i { display: block; height: 100%; }
+
+.repro { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 18px; }
+.repro span { display: flex; align-items: center; gap: 14px; background: var(--ink); color: var(--paper); border-radius: 5px; padding: 18px 20px; }
+.repro i { font: 700 20px var(--f-mono); font-style: normal; color: #E0626F; }
+.repro code { font: 500 19px var(--f-mono); white-space: nowrap; }
+
+/* 15 · Recomendación */
+.rules { border-top: 4px double var(--rule); }
+.rules .r { display: grid; grid-template-columns: 300px 1fr; align-items: center; padding: 24px 0; border-bottom: 1px solid var(--rule); }
+.rules .a { font: 700 40px var(--f-display); }
+.rules .b { font-size: 30px; }
+.risks { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; align-items: center; }
+
+/* ===========================================
+   NOTAS DEL PRESENTADOR (tecla N) — fuera del escenario
+   =========================================== */
+.notes { display: none; }
+.notes-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 2000;
+    background: rgba(13, 11, 9, 0.94); color: #F1E9DA;
+    font: 17px/1.5 var(--f-body); padding: 18px 28px 26px;
+    transform: translateY(100%); transition: transform 0.3s var(--ease);
+}
+.notes-panel.open { transform: none; }
+.progress { position: fixed; left: 0; bottom: 0; height: 4px; background: #E0626F; z-index: 1500; transition: width 0.4s var(--ease); }
+
+/* ===========================================
+   EDICIÓN EN LÍNEA (tecla E o esquina superior izquierda; Ctrl+S guarda)
+   =========================================== */
+.edit-hotzone { position: fixed; top: 0; left: 0; width: 80px; height: 80px; z-index: 10000; cursor: pointer; }
+.edit-toggle {
+    position: fixed; top: 16px; left: 16px; z-index: 10001;
+    border: 0; border-radius: 6px; padding: 8px 14px; font: 600 14px var(--f-mono);
+    background: #F1E9DA; color: #1D1A16; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.edit-toggle.show, .edit-toggle.active { opacity: 1; pointer-events: auto; }
+.editing [contenteditable="true"]:hover { outline: 2px dashed rgba(155, 28, 46, 0.5); }
+
+/* ===========================================
+   IMPRESIÓN / PDF: una diapositiva por página, todo en su estado final
+   =========================================== */
+@page { size: 1920px 1080px; margin: 0; }
+@media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .reveal, .grow, .rise, .stamp-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .stamp-in { opacity: 0.92 !important; }
+    .notes-panel, .progress, .edit-toggle, .edit-hotzone { display: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- =========================================================
+     01 · PORTADA
+     ========================================================= -->
+<section class="slide s-dark active" aria-label="Portada">
+    <div class="title-wrap">
+        <div class="kicker reveal">Proyecto final · Deep Learning y Sistemas Inteligentes 2026 · UVG</div>
+        <h1 class="reveal" style="--d:.15s">¿Mantenemos este modelo<br><em>en producción?</em></h1>
+        <p class="lede reveal" style="--d:.3s">Monitoreo transaccional · ensamble LightGBM + GRU · Banco del Altiplano</p>
+        <div class="team reveal" style="--d:.45s">
+            <span>Andrés Mazariegos<b>21749</b></span>
+            <span>June Herrera<b>231038</b></span>
+            <span>Hansel López<b>19026</b></span>
+        </div>
+        <div class="meta reveal" style="--d:.55s">Prof. Kevin Recinos · Modelo de origen: Proyecto 1 · noviembre 2026</div>
+    </div>
+    <div class="stamp"><div class="stamp-in">EN PRODUCCIÓN<small>GOOGLE CLOUD RUN · US-CENTRAL1</small></div></div>
+    <aside class="notes">Somos el equipo que trae a este comité una pregunta: ¿se mantiene en producción el modelo de fraude? En 10 minutos: problema, modelo, evidencia y nuestra recomendación.</aside>
+</section>
+
+<!-- =========================================================
+     02 · PROBLEMÁTICA — costos asimétricos, decisión y usuarios
+     ========================================================= -->
+<section class="slide" aria-label="Problemática">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 01 — Problemática</span><span>Problema · usuario · decisión</span></div>
+        <h2 class="reveal">Cada transacción se decide <em>en milisegundos</em></h2>
+        <div class="body" style="display:grid;grid-template-columns:700px 860px;gap:80px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s">Dejar pasar un fraude</div>
+                <div class="huge c-block reveal" style="font-size:150px;margin:10px 0 34px;--d:.15s">Q4,200</div>
+                <div class="lbl reveal" style="--d:.25s">Bloquear a un cliente legítimo</div>
+                <div class="huge reveal" style="color:var(--review);font-size:110px;margin-top:10px;--d:.3s">Q180</div>
+                <div class="sq reveal" style="--d:.45s"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                <div class="mono reveal" style="font-size:24px;margin-top:14px;color:var(--ink-2);--d:.5s">23 bloqueos por error = 1 fraude que pasa</div>
+            </div>
+            <div>
+                <div class="lbl reveal" style="--d:.2s">Decisión · probabilidad calibrada de fraude</div>
+                <div class="reveal" style="margin-top:22px;--d:.3s">
+                    <div class="strip">
+                        <div style="width:261px;background:var(--approve)">Aprobar</div>
+                        <div style="width:370px;background:var(--review)">Revisar</div>
+                        <div style="flex:1;background:var(--block)">Bloquear</div>
+                    </div>
+                    <div class="ticks">
+                        <span style="left:12px">0 %</span><span style="left:261px">0.91 %</span><span style="left:631px">2.2 %</span><span style="right:0;transform:none">3 %+</span>
+                    </div>
+                    <div class="who-row">
+                        <div style="width:261px">automático</div><div style="width:370px">analista · ≤ 1 % del tráfico</div><div style="flex:1">automático</div>
+                    </div>
+                </div>
+                <div class="mono reveal" style="font-size:22px;margin:30px 0 44px;color:var(--block);--d:.4s">umbral de mínimo costo = 2.2 % · no 50 %</div>
+                <div class="users">
+                    <div class="card reveal" style="--d:.5s"><div class="lbl">Autorizador</div><div class="v">&lt; 100 ms</div><div class="s">p95 por llamada</div></div>
+                    <div class="card reveal" style="--d:.6s"><div class="lbl">Analista</div><div class="v">¿por qué?</div><div class="s">3 motivos SHAP</div></div>
+                    <div class="card reveal" style="--d:.7s"><div class="lbl">Comité</div><div class="v">¿sigue?</div><div class="s">panel /monitor</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Un fraude que pasa cuesta Q4,200; bloquear a un cliente bueno, Q180: 23 veces menos. Por eso el umbral no es 50 %, es 2.2 %. Tres usuarios: el autorizador (latencia), el analista (explicación) y ustedes (si se queda).</aside>
+</section>
+
+<!-- =========================================================
+     03 · PLANIFICACIÓN — Gantt con responsables
+     ========================================================= -->
+<section class="slide" aria-label="Planificación">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 02 — Planificación</span><span>Etapas · fechas · responsables</span></div>
+        <h2 class="reveal">Primero la hipótesis, <em>después el modelo</em></h2>
+        <div class="body">
+            <div class="gantt reveal" style="--d:.15s">
+                <div class="h">ETAPA</div>
+                <div class="h days"><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15 NOV</span></div>
+                <div class="h" style="text-align:right">QUIÉN</div>
+
+                <div class="g-row"><div class="task">Hipótesis H1 · H2 congeladas</div><div class="lane"><span class="bar tr grow" style="left:6px;width:100px">20:26</span></div><div class="owners"><span class="av am">AM</span></div></div>
+                <div class="g-row"><div class="task">Reentrenamiento K = 3</div><div class="lane"><span class="bar dl grow" style="left:6px;width:100px;--d:.35s"></span></div><div class="owners"><span class="av jh">JH</span></div></div>
+                <div class="g-row"><div class="task">API · demo · monitoreo</div><div class="lane"><span class="bar grow" style="left:6px;width:100px;--d:.4s"></span></div><div class="owners"><span class="av am">AM</span></div></div>
+                <div class="g-row"><div class="task">Pruebas de contrato y paridad</div><div class="lane"><span class="bar dl grow" style="left:6px;width:100px;--d:.45s"></span></div><div class="owners"><span class="av jh">JH</span></div></div>
+                <div class="g-row"><div class="task">H3 ensamble → decisión</div><div class="lane"><span class="bar tr grow" style="left:6px;width:100px;--d:.5s">21:41</span></div><div class="owners trio"><span class="av am">AM</span><span class="av jh">JH</span><span class="av hl">HL</span></div></div>
+                <div class="g-row"><div class="task">Cloud Run · tráfico · evidencias</div><div class="lane"><span class="bar grow" style="left:118px;width:100px;--d:.55s"></span></div><div class="owners"><span class="av am">AM</span><span class="av jh">JH</span></div></div>
+                <div class="g-row"><div class="task">Presentación al comité</div><div class="lane"><span class="bar grow" style="left:118px;width:100px;--d:.6s"></span><span class="bar grow" style="left:566px;width:100px;--d:.65s"></span></div><div class="owners trio"><span class="av am">AM</span><span class="av jh">JH</span><span class="av hl">HL</span></div></div>
+                <div class="g-row"><div class="task">Ajustes · versión final</div><div class="lane"><span class="bar grow" style="left:118px;width:772px;--d:.7s">hasta 15 nov · 23:59</span></div><div class="owners trio"><span class="av am">AM</span><span class="av jh">JH</span><span class="av hl">HL</span></div></div>
+            </div>
+            <div class="legend reveal" style="--d:.8s">
+                <span><span class="av am">AM</span>Andrés Mazariegos</span>
+                <span><span class="av jh">JH</span>June Herrera</span>
+                <span><span class="av hl">HL</span>Hansel López</span>
+                <span style="margin-left:auto"><span class="bar tr" style="position:static;display:inline-block;width:46px;height:22px;vertical-align:middle;margin-right:10px"></span>criterio congelado</span>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">El orden importa: la hipótesis se escribió antes de entrenar (20:26) y la prueba de paridad antes de desplegar. H3 se registró en su propio commit antes de calcular el ensamble.</aside>
+</section>
+
+<!-- =========================================================
+     04 · SUPUESTOS — datos, usuario, entorno
+     ========================================================= -->
+<section class="slide" aria-label="Supuestos">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 03 — Supuestos</span><span>Datos · usuario · entorno</span></div>
+        <h2 class="reveal">Lo que <em>damos por cierto</em></h2>
+        <div class="body">
+            <div class="cols3">
+                <div class="reveal" style="--d:.1s">
+                    <h3>Datos</h3>
+                    <div class="item"><div class="f">419,821</div><div class="k">transacciones sintéticas · generador del P1</div></div>
+                    <div class="item"><div class="f c-block">1.18 %</div><div class="k">de fraude</div></div>
+                    <div class="item"><div class="f">train → val → test</div><div class="k">partición temporal · etiquetas con retraso</div></div>
+                </div>
+                <div class="reveal" style="--d:.25s">
+                    <h3>Usuario</h3>
+                    <div class="item"><div class="f">7 días</div><div class="k">de historia por llamada</div></div>
+                    <div class="item"><div class="f c-review">≤ 1 %</div><div class="k">del tráfico cabe en revisión</div></div>
+                    <div class="item"><div class="f">Q4,200 / Q180</div><div class="k">costos promedio fijos</div></div>
+                </div>
+                <div class="reveal" style="--d:.4s">
+                    <h3>Entorno</h3>
+                    <div class="item"><div class="f">CPU</div><div class="k">2 vCPU · 2 GiB · sin GPU</div></div>
+                    <div class="item"><div class="f">1 instancia</div><div class="k">Cloud Run · escala a cero</div></div>
+                    <div class="item"><div class="f">efímero</div><div class="k">registro SQLite → exportable a CSV</div></div>
+                </div>
+            </div>
+            <div class="banner reveal" style="--d:.6s"><b>Datos sintéticos:</b> probamos el sistema de producción, no que el patrón exista así en el banco.</div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">El supuesto que gobierna todo: los datos son sintéticos. Demostramos el pipeline completo, no el patrón real. El autorizador manda 7 días de historia (una prueba verifica que más no cambia el puntaje).</aside>
+</section>
+
+<!-- =========================================================
+     05 · MODELO PLANTEADO — origen, cambio y arquitectura del ensamble
+     ========================================================= -->
+<section class="slide" aria-label="Modelo planteado">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 04 — Modelo planteado</span><span>Origen · arquitectura · cambio justificado</span></div>
+        <h2 class="reveal">Del Proyecto 1, <em>un solo cambio</em>: K de 20 a 3</h2>
+        <div class="body" style="display:grid;grid-template-columns:520px 1040px;gap:80px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s">Curva del P1 · AUC-PR del GRU</div>
+                <svg class="reveal" style="--d:.15s;margin-top:20px" width="520" height="250" viewBox="0 0 520 250" role="img" aria-label="AUC-PR del GRU: 0.636 con K=20 y 0.749 con K=3">
+                    <rect class="grow" x="140" y="20" width="318" height="70" fill="#CBBFA9"/>
+                    <rect class="grow" x="140" y="130" width="374" height="70" fill="#2B4C72" style="--d:.45s"/>
+                    <text x="0" y="66" font-size="28" font-weight="600">K = 20</text>
+                    <text x="0" y="176" font-size="28" font-weight="700">K = 3</text>
+                    <text class="m" x="440" y="66" font-size="26" font-weight="700" text-anchor="end">0.636</text>
+                    <text class="m" x="496" y="176" font-size="26" font-weight="700" fill="#fff" text-anchor="end">0.749</text>
+                    <text x="140" y="240" font-size="20" fill="#5F584C">eje desde 0.40 · una semilla</text>
+                </svg>
+                <div class="reveal" style="--d:.3s;margin-top:36px">
+                    <div class="lbl">Por qué</div>
+                    <p style="font-size:28px;line-height:1.35;margin-top:12px">“Sondeo y golpe” vive en las <b>últimas 3</b> transacciones; con 20 pasos el GRU aprendía relleno.</p>
+                </div>
+                <div class="reveal" style="--d:.4s;margin-top:28px;display:flex;gap:12px;flex-wrap:wrap">
+                    <span class="chip">mismos datos</span><span class="chip">mismas semillas</span><span class="chip">mismos hiperparámetros</span>
+                </div>
+            </div>
+            <svg class="reveal" style="--d:.25s" width="1040" height="600" viewBox="0 0 1040 600" role="img" aria-label="Arquitectura del ensamble E">
+                <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1D1A16"/></marker></defs>
+                <!-- C_K3: GRU híbrido -->
+                <text class="m" x="0" y="22" font-size="20" font-weight="700" fill="#2B4C72">C_K3 · GRU HÍBRIDO (DEEP LEARNING) · 27,457 PARÁMETROS</text>
+                <rect x="0" y="38" width="1040" height="270" rx="10" fill="none" stroke="#2B4C72" stroke-width="2" stroke-dasharray="10 8"/>
+                <rect x="24" y="62" width="330" height="96" rx="6" fill="#FBF7EF" stroke="#D3C5AC" stroke-width="1.5"/>
+                <text x="42" y="102" font-size="25" font-weight="700">Últimas 3 transacciones</text>
+                <text x="42" y="136" font-size="19" fill="#5F584C">7 numéricas + 3 embeddings</text>
+                <rect x="410" y="62" width="230" height="96" rx="6" fill="#DCE4EE" stroke="#2B4C72" stroke-width="2"/>
+                <text x="430" y="104" font-size="30" font-weight="700" fill="#2B4C72">GRU 64</text>
+                <text x="430" y="138" font-size="19" fill="#2B4C72">máscara · dropout 0.3</text>
+                <rect x="24" y="188" width="330" height="96" rx="6" fill="#FBF7EF" stroke="#D3C5AC" stroke-width="1.5"/>
+                <text x="42" y="228" font-size="25" font-weight="700">30 agregados causales</text>
+                <text x="42" y="262" font-size="19" fill="#5F584C">escalados</text>
+                <rect x="700" y="116" width="316" height="118" rx="6" fill="#FBF7EF" stroke="#2B4C72" stroke-width="2"/>
+                <text x="720" y="162" font-size="25" font-weight="700">Concat</text>
+                <text x="720" y="200" font-size="25" font-weight="700">Dense 32 → σ</text>
+                <path d="M354 110 H404" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <path d="M640 110 H668 V155 H694" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <path d="M354 236 H668 V196 H694" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <!-- A: LightGBM -->
+                <rect x="24" y="350" width="330" height="86" rx="6" fill="#FBF7EF" stroke="#D3C5AC" stroke-width="1.5"/>
+                <text x="42" y="388" font-size="25" font-weight="700">30 agregados</text>
+                <text x="42" y="418" font-size="19" fill="#5F584C">sin orden</text>
+                <rect x="410" y="350" width="230" height="86" rx="6" fill="#E6E2DA" stroke="#6E675B" stroke-width="2"/>
+                <text x="430" y="392" font-size="30" font-weight="700" fill="#4A453C">LightGBM</text>
+                <text class="m" x="430" y="422" font-size="19" fill="#4A453C">componente A</text>
+                <path d="M354 393 H404" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <!-- E: ensamble -->
+                <rect x="700" y="330" width="316" height="126" rx="6" fill="#1D1A16"/>
+                <text x="720" y="380" font-size="30" font-weight="700" fill="#F1E9DA">E = ½·A + ½·C_K3</text>
+                <text x="720" y="420" font-size="19" fill="#C9B99C">peso fijo · sin ajustar en val</text>
+                <path d="M858 234 V324" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <path d="M640 393 H694" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <!-- Calibración y decisión -->
+                <rect x="700" y="496" width="316" height="96" rx="6" fill="#FBF7EF" stroke="#D3C5AC" stroke-width="1.5"/>
+                <text x="720" y="536" font-size="24" font-weight="700">Calibración isotónica</text>
+                <text class="m" x="720" y="572" font-size="19" fill="#5F584C">u* = 2.2 % (mínimo costo)</text>
+                <path d="M858 456 V490" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <path d="M700 544 H612" stroke="#1D1A16" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+                <rect x="24" y="520" width="180" height="50" rx="25" fill="#9B1C2E"/><text x="114" y="553" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">Bloquear</text>
+                <rect x="220" y="520" width="180" height="50" rx="25" fill="#B4751A"/><text x="310" y="553" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">Revisar</text>
+                <rect x="416" y="520" width="180" height="50" rx="25" fill="#2F6B4A"/><text x="506" y="553" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">Aprobar</text>
+            </svg>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Origen: nuestro Proyecto 1, elegido sobre la GAN y Text-to-SQL porque tiene costo medible, línea base y deriva. Un solo cambio: ventana de 20 a 3 transacciones, porque la curva del propio P1 lo señalaba. Lo servido: el GRU híbrido y LightGBM promediados 50/50, calibrados.</aside>
+</section>
+
+<!-- =========================================================
+     06 · VALIDACIÓN DE HIPÓTESIS — AUC-PR con desviación + veredictos
+     ========================================================= -->
+<section class="slide" aria-label="Validación de hipótesis">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 05 — Validación de hipótesis</span><span>Criterio congelado antes de entrenar · SHA-256</span></div>
+        <h2 class="reveal">H1 se cumple; <em>H2 y H3 no</em></h2>
+        <div class="body" style="display:grid;grid-template-columns:1040px 520px;gap:80px">
+            <svg class="reveal" style="--d:.1s" width="1040" height="580" viewBox="0 0 1040 580" role="img" aria-label="AUC-PR de validación por modelo">
+                <!-- cuadrícula: x(v) = 270 + (v - 0.60) / 0.30 × 700 -->
+                <g stroke="#D3C5AC" stroke-width="1.5">
+                    <line x1="270" y1="0" x2="270" y2="480"/><line x1="503.3" y1="0" x2="503.3" y2="480"/>
+                    <line x1="736.7" y1="0" x2="736.7" y2="480"/><line x1="970" y1="0" x2="970" y2="480"/>
+                </g>
+                <g class="m" font-size="20" fill="#5F584C" text-anchor="middle">
+                    <text x="270" y="512">0.60</text><text x="503.3" y="512">0.70</text><text x="736.7" y="512">0.80</text><text x="970" y="512">0.90</text>
+                </g>
+                <text x="270" y="560" font-size="20" fill="#5F584C">AUC-PR validación · media de 3 semillas ± desviación · eje desde 0.60</text>
+                <g font-size="25" text-anchor="end">
+                    <text x="250" y="41">A · LightGBM</text>
+                    <text x="250" y="121" fill="#6F675A">B · GRU K=20</text>
+                    <text x="250" y="201" font-weight="700">B · GRU K=3</text>
+                    <text x="250" y="281" fill="#6F675A">C · híbrido K=20</text>
+                    <text x="250" y="361" font-weight="700">C · híbrido K=3</text>
+                    <text x="250" y="441" font-weight="800">E · ensamble</text>
+                </g>
+                <rect class="grow" x="270" y="10" width="543.4" height="46" fill="#6E675B"/>
+                <rect class="grow" x="270" y="90" width="265.5" height="46" fill="#CBBFA9" style="--d:.4s"/>
+                <rect class="grow" x="270" y="170" width="340" height="46" fill="#86A0C0" style="--d:.5s"/>
+                <rect class="grow" x="270" y="250" width="219.1" height="46" fill="#CBBFA9" style="--d:.6s"/>
+                <rect class="grow" x="270" y="330" width="424.7" height="46" fill="#86A0C0" style="--d:.7s"/>
+                <rect class="grow" x="270" y="410" width="551.6" height="46" fill="#2B4C72" style="--d:.8s"/>
+                <!-- barras de error -->
+                <g stroke="#1D1A16" stroke-width="2.5">
+                    <path d="M808.7 33 H818.1 M808.7 25 V41 M818.1 25 V41"/>
+                    <path d="M375.7 113 H695.3 M375.7 103 V123 M695.3 103 V123" stroke="#9B1C2E"/>
+                    <path d="M604.4 193 H615.6 M604.4 185 V201 M615.6 185 V201"/>
+                    <path d="M416.5 273 H561.7 M416.5 263 V283 M561.7 263 V283"/>
+                    <path d="M682.6 353 H706.8 M682.6 345 V361 M706.8 345 V361"/>
+                    <path d="M815.1 433 H828.1 M815.1 425 V441 M828.1 425 V441"/>
+                </g>
+                <g class="m" font-size="24" font-weight="700">
+                    <text x="832" y="42">0.833</text>
+                    <text x="710" y="122" fill="#9B1C2E">0.714 ± 0.068</text>
+                    <text x="628" y="202">0.746</text>
+                    <text x="576" y="282" fill="#6F675A">0.694 ± 0.031</text>
+                    <text x="720" y="362">0.782</text>
+                    <text x="842" y="442" fill="#2B4C72">0.836</text>
+                </g>
+            </svg>
+            <div class="verdicts">
+                <div class="card reveal" style="--d:.3s"><div class="t"><span class="n">H1 · K=3 &gt; K=20</span><span class="pill ok">Se cumple</span></div><div class="c">criterio: +0.03 y peor semilla &gt; 0.714</div><div class="r">+0.032 · peor 0.743</div></div>
+                <div class="card reveal" style="--d:.45s"><div class="t"><span class="n">H2 · híbrido ≥ A</span><span class="pill no">No</span></div><div class="c">criterio: media ≥ A − 0.005</div><div class="r c-block">−0.051</div></div>
+                <div class="card reveal" style="--d:.6s"><div class="t"><span class="n">H3 · E no peor que A</span><span class="pill no">No</span></div><div class="c">criterio: AUC-PR ≥ A y costo ≤ A</div><div class="r">+0.0035 · <span class="c-block">costo +Q11k</span></div></div>
+                <div class="mono reveal" style="font-size:20px;color:var(--ink-2);--d:.75s;line-height:1.4">AUC-PR, no exactitud: con 1.2 % de fraude, “aprobar todo” acierta 98.8 %</div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Línea base: LightGBM, 0.833. H1 se cumple: K=3 mejora el GRU, y sobre todo baja la desviación entre semillas. H2 no: el híbrido queda 0.05 debajo de LightGBM. H3 no: el ensamble ordena mejor pero en su umbral cuesta más en validación.</aside>
+</section>
+
+<!-- =========================================================
+     07 · FALSIFICACIÓN — permutación y estabilidad
+     ========================================================= -->
+<section class="slide" aria-label="Prueba de permutación">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 05 — Validación · falsificación</span><span>¿El Deep Learning aporta algo real?</span></div>
+        <h2 class="reveal">El GRU <em>sí</em> usa el orden</h2>
+        <div class="body" style="display:grid;grid-template-columns:860px 700px;gap:80px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s">Prueba de permutación · AUC-PR del GRU (validación)</div>
+                <svg class="reveal" style="--d:.15s;margin-top:18px" width="860" height="560" viewBox="0 0 860 560" role="img" aria-label="Permutación: 0.786 original, 0.761 historia barajada, 0.661 ventana barajada">
+                    <!-- altura = valor × 500 px, base en y = 470 -->
+                    <line x1="40" y1="470" x2="840" y2="470" stroke="#1D1A16" stroke-width="2"/>
+                    <rect class="rise" x="80" y="77" width="190" height="393" fill="#2B4C72"/>
+                    <rect class="rise" x="340" y="89.5" width="190" height="380.5" fill="#86A0C0" style="--d:.45s"/>
+                    <rect class="rise" x="600" y="139.5" width="190" height="330.5" fill="#CBBFA9" style="--d:.6s"/>
+                    <g class="m" font-size="30" font-weight="700" text-anchor="middle">
+                        <text x="175" y="60">0.786</text><text x="435" y="72">0.761</text><text x="695" y="122">0.661</text>
+                    </g>
+                    <g class="m" font-size="26" font-weight="700" text-anchor="middle" fill="#9B1C2E">
+                        <text x="435" y="34">−0.025</text><text x="695" y="84">−0.125</text>
+                    </g>
+                    <g font-size="25" text-anchor="middle">
+                        <text x="175" y="508">original</text>
+                        <text x="435" y="508">historia</text><text x="435" y="540" fill="#5F584C">barajada</text>
+                        <text x="695" y="508">ventana</text><text x="695" y="540" fill="#5F584C">barajada</text>
+                    </g>
+                </svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:30px">
+                <div class="card reveal" style="--d:.35s">
+                    <div class="lbl">Desviación entre semillas · GRU</div>
+                    <div style="display:grid;grid-template-columns:auto auto auto;justify-content:start;align-items:baseline;column-gap:30px;row-gap:6px;margin-top:22px;white-space:nowrap">
+                        <span class="mono c-mute" style="font-size:56px;font-weight:700;text-decoration:line-through;text-decoration-thickness:4px">± 0.068</span>
+                        <span style="font:400 50px var(--f-display);color:var(--ink-3)">→</span>
+                        <span class="mono c-dl" style="font-size:56px;font-weight:700">± 0.002</span>
+                        <span style="font-size:23px;color:var(--ink-2)">K = 20</span><span></span><span style="font-size:23px;color:var(--ink-2)">K = 3</span>
+                    </div>
+                </div>
+                <div class="card reveal" style="--d:.5s">
+                    <div class="lbl">Lectura</div>
+                    <p style="font-size:30px;line-height:1.4;margin-top:14px">Barajar la ventana le quita <b class="c-block">0.125</b>.<br>Con K = 3 el resultado <b>ya no depende de la suerte</b>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Intentamos falsificar al GRU: si barajamos el orden y el puntaje no cambia, el orden no importa. Cae de 0.786 a 0.661: sí lo usa. Y con K=3 la varianza entre semillas cae de 0.068 a 0.002.</aside>
+</section>
+
+<!-- =========================================================
+     08 · RESULTADO FRENTE A LA LÍNEA BASE (prueba)
+     ========================================================= -->
+<section class="slide" aria-label="Resultado en prueba">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 05 — Resultado frente a la línea base</span><span>Prueba · 13.4 días · 62,974 tx · 703 fraudes</span></div>
+        <h2 class="reveal">Cualquier modelo ahorra <em>≈ Q6 M al mes</em></h2>
+        <div class="body" style="display:grid;grid-template-columns:1180px 380px;gap:80px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s;margin-bottom:30px">Costo en prueba (Q) · FN × 4,200 + FP × 180</div>
+                <div class="hbars" style="row-gap:46px">
+                    <div class="l reveal" style="--d:.15s">Sin modelo<small>aprobar todo</small></div>
+                    <div class="hb"><i class="grow" style="width:770px;background:var(--block);--d:.2s"></i><b class="c-block">Q2.95 M</b></div>
+                    <div class="l reveal" style="--d:.25s">C_K3 · GRU solo<small>AUC-PR 0.789 · recall 94.2 %</small></div>
+                    <div class="hb"><i class="grow" style="width:95px;background:var(--dl-2);--d:.35s"></i><b>Q365 k</b></div>
+                    <div class="l reveal" style="--d:.3s"><b>E · ensamble</b><small>AUC-PR 0.853 · recall 97.6 %</small></div>
+                    <div class="hb"><i class="grow" style="width:69px;background:var(--dl);--d:.45s"></i><b class="c-dl">Q263 k</b></div>
+                    <div class="l reveal" style="--d:.35s">A · LightGBM<small>AUC-PR 0.857 · recall 97.7 %</small></div>
+                    <div class="hb"><i class="grow" style="width:68px;background:var(--lgb);--d:.55s"></i><b>Q261 k</b></div>
+                </div>
+                <div class="mono reveal" style="font-size:20px;color:var(--ink-2);margin-top:30px;--d:.6s">evaluada con modelos, calibradores y umbrales ya congelados en validación</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:26px">
+                <div class="card reveal" style="--d:.5s"><div class="lbl">Ahorro / mes · E</div><div class="huge c-approve" style="font-size:84px;margin-top:14px">Q6.01 M</div></div>
+                <div class="card reveal" style="--d:.6s"><div class="lbl">Ahorro / mes · A</div><div class="huge" style="font-size:84px;margin-top:14px;color:var(--lgb)">Q6.02 M</div></div>
+                <div class="card reveal" style="--d:.7s"><div class="lbl">Fraudes detenidos</div><div class="huge c-dl" style="font-size:84px;margin-top:14px">97.6 %</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">En prueba, sin modelo perdemos Q2.95 M en 13 días. Ensamble y LightGBM quedan prácticamente empatados (Q263k vs Q261k) y ahorran unos Q6 M al mes. El GRU solo es peor; combinado, no.</aside>
+</section>
+
+<!-- =========================================================
+     09 · REGLA TÉCNICA vs DECISIÓN DE NEGOCIO
+     ========================================================= -->
+<section class="slide" aria-label="Decisión de producción">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 05 — Decisión de producción</span><span>docs/DECISION.md</span></div>
+        <h2 class="reveal">Regla: LightGBM. <em>Negocio: el ensamble.</em></h2>
+        <div class="body">
+            <div class="versus">
+                <div class="card reveal" style="--d:.1s">
+                    <div class="lbl">Regla congelada · H3</div>
+                    <div class="big" style="color:var(--lgb)">A decide</div>
+                    <div style="font-size:27px;color:var(--ink-2)">E ordena mejor, <b class="c-block">cuesta más</b> en su umbral</div>
+                </div>
+                <div class="arrow reveal" style="--d:.25s">→</div>
+                <div class="card reveal" style="--d:.35s;border-color:var(--dl);background:var(--dl-soft)">
+                    <div class="lbl" style="color:var(--dl)">Decisión de negocio · declarada</div>
+                    <div class="big c-dl">E decide</div>
+                    <div style="font-size:27px;color:var(--ink-2)">el Deep Learning participa en <b>cada</b> decisión</div>
+                </div>
+            </div>
+            <div class="price reveal" style="--d:.5s">
+                <div class="lbl">Precio de la decisión · ahorro mensual del ensamble = Q6.01 M</div>
+                <div class="track"><span class="tag">ahorro que se conserva · 99.92 %</span><span class="sliver"></span></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:30px">
+                <div class="reveal" style="display:flex;gap:14px;--d:.65s"><span class="chip">PROMOVER_RETADOR=1</span><span class="chip">reversible · sin reentrenar</span><span class="chip">A en sombra</span></div>
+                <div class="reveal" style="text-align:right;--d:.7s"><div class="mono c-block" style="font-size:44px;font-weight:700">+ Q4,560 / mes</div><div style="font-size:24px;color:var(--ink-2)">= 0.08 % del ahorro</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Por la regla que congelamos, gana LightGBM. Decidimos promover el ensamble para que el Deep Learning participe en cada decisión, y lo decimos en voz alta: cuesta Q4,560 al mes, el 0.08 % del ahorro. Es una línea del Dockerfile y se revierte sin reentrenar.</aside>
+</section>
+
+<!-- =========================================================
+     10 · HERRAMIENTAS Y ARQUITECTURA
+     ========================================================= -->
+<section class="slide" aria-label="Herramientas y arquitectura">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 06 — Herramientas y arquitectura</span><span>Datos · entrenamiento · servicio · monitoreo</span></div>
+        <h2 class="reveal" style="font-size:68px">Datos → entrenamiento → servicio → <em>monitoreo</em></h2>
+        <div class="body">
+            <div class="arch">
+                <div class="col reveal" style="--d:.1s">
+                    <div class="ch">1 · Datos</div>
+                    <div class="box"><b>Generador del P1</b><small>semilla 20260831</small></div>
+                    <div class="box"><b>419,821 tx</b><small>4,000 tarjetas · 90 días</small></div>
+                    <div class="box"><b>Partición temporal</b><small>train / val / test</small></div>
+                </div>
+                <div class="flowarr reveal" style="--d:.15s">→</div>
+                <div class="col reveal" style="--d:.2s">
+                    <div class="ch">2 · Entrenamiento</div>
+                    <div class="box"><b>Features del P1</b><small>agregados + ventana K=3</small></div>
+                    <div class="box"><b>LightGBM ×3 · GRU ×3</b><small>Keras 3 (torch) · CPU</small></div>
+                    <div class="box"><b>Calibración + u*</b><small>en validación</small></div>
+                    <div class="box"><b>Artefactos</b><small>+ SHA-256 de hipótesis</small></div>
+                </div>
+                <div class="flowarr reveal" style="--d:.25s">→</div>
+                <div class="col reveal" style="--d:.3s">
+                    <div class="ch">3 · Servicio</div>
+                    <div class="box dark"><b>Docker · Cloud Run</b><small style="color:#C9B99C">2 vCPU · 2 GiB</small></div>
+                    <div class="box"><b>FastAPI · POST /predecir</b><small>Pydantic · Uvicorn ×2</small></div>
+                    <div class="box split"><div style="background:var(--dl-soft)"><b class="c-dl">E decide</b><small>campeón</small></div><div><b style="color:var(--lgb)">A sombra</b><small>retador</small></div></div>
+                    <div class="box"><b>SQLite</b><small>predicción + etiqueta</small></div>
+                </div>
+                <div class="flowarr reveal" style="--d:.35s">→</div>
+                <div class="col reveal" style="--d:.4s">
+                    <div class="ch">4 · Monitoreo</div>
+                    <div class="box"><b>GET /metricas</b><small>ventana móvil</small></div>
+                    <div class="box"><b>PSI · p95 · costo real</b><small>campeón vs. retador</small></div>
+                    <div class="box dark"><b>/monitor</b><small style="color:#C9B99C">panel del comité</small></div>
+                </div>
+            </div>
+            <div class="actors reveal" style="--d:.55s">
+                <span class="chip">Autorizador → transacción + 7 días → /predecir</span>
+                <span class="chip">Contracargos → /retroalimentacion</span>
+                <span class="chip" style="background:var(--block-soft);border-color:var(--block);color:var(--block)">0 features reimplementadas</span>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Cuatro bloques. Clave del diseño: el servicio no reimplementa features, llama a las mismas funciones del entrenamiento. El retador ve lo mismo que el campeón y queda registrado. Las etiquetas llegan después por /retroalimentacion y el panel mide costo real.</aside>
+</section>
+
+<!-- =========================================================
+     11 · EVIDENCIA: SERVICIO PÚBLICO
+     ========================================================= -->
+<section class="slide" aria-label="Servicio en producción">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 07 — Evidencias · enlace al servicio</span><span>Google Cloud Run · us-central1</span></div>
+        <h2 class="reveal">Cualquiera puede <em>usarlo hoy</em></h2>
+        <div class="body" style="display:grid;grid-template-columns:640px 900px;gap:100px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s">Servicio</div>
+                <div class="mono reveal" style="font-size:31px;font-weight:700;line-height:1.3;margin:14px 0 34px;color:var(--dl);--d:.15s">monitoreo-transaccional-<br>837352528666.us-central1<br>.run.app</div>
+                <div class="endp reveal" style="--d:.3s">
+                    <div class="p">/</div><div>demo del analista</div>
+                    <div class="p">/monitor</div><div>panel del comité</div>
+                    <div class="p">/docs</div><div>API · OpenAPI</div>
+                    <div class="p">/registros.csv</div><div>registros de uso</div>
+                </div>
+                <div class="reveal" style="margin-top:34px;display:flex;gap:12px;flex-wrap:wrap;--d:.45s">
+                    <span class="pill no">Bloquear · 58 %</span><span class="pill dl">GRU 0.987</span><span class="pill" style="background:#E6E2DA;color:var(--lgb)">LightGBM 0.989</span>
+                </div>
+            </div>
+            <div class="reveal" style="--d:.25s">
+                <div class="shot" style="width:900px;height:620px"><img src="../evidencias/demo_sondeo_y_golpe.png" alt="Demo: caso sondeo y golpe bloqueado por el ensamble"></div>
+                <div class="mono" style="font-size:20px;color:var(--ink-2);margin-top:20px">“sondeo y golpe” real del periodo de prueba · decisión, motivos y retador</div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Está en producción: URL pública, sin instalar nada. La demo usa casos reales de prueba. Este es un sondeo y golpe: compras pequeñas y luego Q2,509 en gasolinera. Riesgo 58 %, bloquear; ambas mitades del ensamble lo ven; LightGBM en sombra también.</aside>
+</section>
+
+<!-- =========================================================
+     12 · EVIDENCIA: PRUEBAS Y PARIDAD
+     ========================================================= -->
+<section class="slide" aria-label="Pruebas">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 07 — Evidencias · pruebas</span><span>Repositorio reproducible · pytest</span></div>
+        <h2 class="reveal">Producción decide <em>igual que el entrenamiento</em></h2>
+        <div class="body">
+            <div class="tri">
+                <div class="card reveal" style="--d:.1s">
+                    <div class="lbl">Pruebas automáticas</div>
+                    <div class="v c-approve">76 / 76</div>
+                    <div class="k">contrato de la API · 422 en entradas inválidas · PSI · features del P1</div>
+                </div>
+                <div class="card reveal" style="--d:.25s">
+                    <div class="lbl">Paridad servicio ↔ entrenamiento</div>
+                    <div class="v c-dl">Δ &lt; 10⁻⁵</div>
+                    <div class="k">40 tx reales · 15 fraudes<br><b class="c-block">atrapó 1 bug</b> antes de desplegar</div>
+                </div>
+                <div class="card reveal" style="--d:.4s">
+                    <div class="lbl">Mismas 2,000 tx · decisiones</div>
+                    <div style="font-size:24px;font-weight:600;margin-top:26px">Local</div>
+                    <div class="stack"><i class="grow" style="width:95.1%;background:var(--approve);--d:.5s"></i><i style="width:1.05%;background:var(--review)"></i><i style="width:3.85%;background:var(--block)"></i></div>
+                    <div style="font-size:24px;font-weight:600">Cloud Run</div>
+                    <div class="stack"><i class="grow" style="width:95.1%;background:var(--approve);--d:.65s"></i><i style="width:1.05%;background:var(--review)"></i><i style="width:3.85%;background:var(--block)"></i></div>
+                    <div class="mono" style="font-size:22px"><span class="c-approve">1,902</span> · <span class="c-review">21</span> · <span class="c-block">77</span> &nbsp;=&nbsp; idénticas</div>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top:56px;--d:.6s">
+                <div class="lbl">Repositorio reproducible · de cero a servicio</div>
+                <div class="repro">
+                    <span><i>1</i><code>pip install -r requirements.txt</code></span>
+                    <span><i>2</i><code>python -m pytest</code></span>
+                    <span><i>3</i><code>python -m entrenamiento.entrenar</code></span>
+                    <span><i>4</i><code>docker build -t monitoreo .</code></span>
+                </div>
+                <div class="mono" style="font-size:20px;color:var(--ink-2);margin-top:18px">versiones fijadas · mismo dataset con la misma semilla · README = documento técnico</div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">76 pruebas, todas pasan. La más importante es la de paridad: el servicio reproduce el puntaje del entrenamiento con diferencia menor a 1e-5; atrapó un bug de timestamps antes de desplegar. Y en Cloud Run las mismas 2,000 transacciones dieron exactamente las mismas decisiones que en local.</aside>
+</section>
+
+<!-- =========================================================
+     13 · EVIDENCIA: TRÁFICO REAL (latencia y costo)
+     ========================================================= -->
+<section class="slide" aria-label="Tráfico en producción">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 07 — Evidencias · registros de uso</span><span>Corrida contra la URL pública · 9 nov</span></div>
+        <h2 class="reveal">2,500 transacciones reales, <em>0 errores</em></h2>
+        <div class="body" style="display:grid;grid-template-columns:900px 660px;gap:80px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s">Latencia en servidor (ms) · p50 / p95</div>
+                <!-- escala: 4 px por ms; objetivo 100 ms en x = 400 -->
+                <svg class="reveal" style="--d:.15s;margin-top:22px" width="900" height="520" viewBox="0 0 900 520" role="img" aria-label="Latencia p50 y p95 por escenario frente al objetivo de 100 ms">
+                    <line x1="560" y1="10" x2="560" y2="430" stroke="#9B1C2E" stroke-width="3" stroke-dasharray="10 8"/>
+                    <text class="m" x="568" y="462" font-size="21" fill="#9B1C2E" font-weight="700">objetivo p95 &lt; 100 ms</text>
+                    <g font-size="24" font-weight="600">
+                        <text x="0" y="62">Local · 1 cliente</text>
+                        <text x="0" y="202">Producción · 4 clientes</text>
+                        <text x="0" y="342">Producción · deriva</text>
+                    </g>
+                    <!-- x = 160 + ms × 4 -->
+                    <rect class="grow" x="160" y="80" width="148" height="30" fill="#CBBFA9"/>
+                    <rect class="grow" x="160" y="114" width="188" height="30" fill="#2F6B4A" style="--d:.4s"/>
+                    <rect class="grow" x="160" y="220" width="364" height="30" fill="#CBBFA9" style="--d:.5s"/>
+                    <rect class="grow" x="160" y="254" width="664" height="30" fill="#9B1C2E" style="--d:.6s"/>
+                    <rect class="grow" x="160" y="360" width="368" height="30" fill="#CBBFA9" style="--d:.7s"/>
+                    <rect class="grow" x="160" y="394" width="712" height="30" fill="#9B1C2E" style="--d:.8s"/>
+                    <g class="m" font-size="20" font-weight="700">
+                        <text x="300" y="102" text-anchor="end">37</text><text x="356" y="136">47</text>
+                        <text x="516" y="242" text-anchor="end">91</text><text x="832" y="276" fill="#9B1C2E">166</text>
+                        <text x="520" y="382" text-anchor="end">92</text><text x="805" y="416" fill="#fff">178</text>
+                    </g>
+                    <g font-size="20" fill="#5F584C"><rect x="160" y="490" width="22" height="16" fill="#CBBFA9"/><text x="192" y="505">p50</text><rect x="260" y="490" width="22" height="16" fill="#2F6B4A"/><text x="292" y="505">p95 cumple</text><rect x="430" y="490" width="22" height="16" fill="#9B1C2E"/><text x="462" y="505">p95 no cumple</text></g>
+                </svg>
+            </div>
+            <div>
+                <div class="lbl reveal" style="--d:.3s">Costo realizado · 2,000 tx · 43 fraudes</div>
+                <div class="hbars" style="grid-template-columns:220px 1fr;margin-top:34px;row-gap:30px">
+                    <div class="l reveal" style="--d:.35s">Sin modelo</div><div class="hb"><i class="grow" style="width:250px;background:var(--block);--d:.4s"></i><b class="c-block">Q180,600</b></div>
+                    <div class="l reveal" style="--d:.4s"><b>E · decide</b></div><div class="hb"><i class="grow" style="width:11px;background:var(--dl);--d:.5s"></i><b class="c-dl">Q6,120</b></div>
+                    <div class="l reveal" style="--d:.45s">A · sombra</div><div class="hb"><i class="grow" style="width:11px;background:var(--lgb);--d:.55s"></i><b>Q6,300</b></div>
+                </div>
+                <div class="reveal" style="margin-top:44px;display:flex;gap:12px;flex-wrap:wrap;--d:.6s">
+                    <span class="pill ok">recall 100 % · ambos</span><span class="pill warn">43 fraudes: aún no significativo</span>
+                </div>
+                <div class="card reveal" style="margin-top:34px;padding:22px 28px;--d:.7s">
+                    <div class="lbl c-block">Limitación declarada</div>
+                    <div style="font-size:25px;margin-top:10px">p95 &gt; 100 ms con 4 clientes: GIL + keep-alive por worker</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Reprodujimos 2,500 transacciones contra la URL pública: cero errores. Con un cliente la latencia cumple de sobra; con 4 clientes concurrentes el p95 pasa de 100 ms: lo declaramos como limitación. Sobre tráfico etiquetado, ambos detienen el 100 % y el ensamble salió Q180 más barato, sin significancia con 43 fraudes.</aside>
+</section>
+
+<!-- =========================================================
+     14 · EVIDENCIA: MONITOREO DE DERIVA (PSI)
+     ========================================================= -->
+<section class="slide" aria-label="Monitoreo de deriva">
+    <div class="frame">
+        <div class="folio"><span class="sec">§ 07 — Evidencias · monitoreo</span><span>PSI contra validación · montos ×2.5</span></div>
+        <h2 class="reveal">Cambian las entradas, <em>no el modelo</em></h2>
+        <div class="body" style="display:grid;grid-template-columns:820px 740px;gap:80px">
+            <div>
+                <div class="lbl reveal" style="--d:.1s">PSI · tráfico normal vs. deriva simulada</div>
+                <!-- altura = PSI × 420 px, base en y = 470 -->
+                <svg class="reveal" style="--d:.15s;margin-top:18px" width="820" height="580" viewBox="0 0 820 580" role="img" aria-label="PSI del monto 0.003 a 1.019; PSI del puntaje 0.054 a 0.022">
+                    <line x1="40" y1="365" x2="800" y2="365" stroke="#9B1C2E" stroke-width="2.5" stroke-dasharray="10 8"/>
+                    <line x1="40" y1="428" x2="800" y2="428" stroke="#B4751A" stroke-width="2.5" stroke-dasharray="10 8"/>
+                    <text class="m" x="800" y="355" font-size="19" fill="#9B1C2E" text-anchor="end" font-weight="700">alerta 0.25</text>
+                    <text class="m" x="800" y="418" font-size="19" fill="#B4751A" text-anchor="end" font-weight="700">vigilar 0.10</text>
+                    <line x1="40" y1="470" x2="800" y2="470" stroke="#1D1A16" stroke-width="2"/>
+                    <rect class="rise" x="90" y="466" width="120" height="4" fill="#CBBFA9"/>
+                    <rect class="rise" x="230" y="42" width="120" height="428" fill="#9B1C2E" style="--d:.45s"/>
+                    <rect class="rise" x="470" y="447.3" width="120" height="22.7" fill="#CBBFA9" style="--d:.55s"/>
+                    <rect class="rise" x="610" y="460.8" width="120" height="9.2" fill="#2B4C72" style="--d:.65s"/>
+                    <g class="m" font-size="24" font-weight="700" text-anchor="middle">
+                        <text x="150" y="458" font-size="20">0.003</text><text x="290" y="30" fill="#9B1C2E">1.019</text>
+                        <text x="530" y="449" font-size="20">0.054</text><text x="670" y="454" font-size="20" fill="#2B4C72">0.022</text>
+                    </g>
+                    <g font-size="20" fill="#5F584C" text-anchor="middle">
+                        <text x="150" y="498">normal</text><text x="290" y="498">×2.5</text><text x="530" y="498">normal</text><text x="670" y="498">×2.5</text>
+                    </g>
+                    <g font-size="26" font-weight="700" text-anchor="middle">
+                        <text x="220" y="548">Monto</text><text x="600" y="548">Puntaje del ensamble</text>
+                    </g>
+                </svg>
+            </div>
+            <div class="reveal" style="--d:.3s">
+                <div class="shot" style="width:740px;height:470px"><img src="../evidencias/monitor_deriva.png" alt="Panel de monitoreo con alerta de deriva en monto"></div>
+                <div class="reveal" style="margin-top:28px;font-size:28px;line-height:1.4;--d:.5s">Alerta de entrada <b>≠</b> modelo roto: usa montos <b>relativos</b> a la tarjeta.</div>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Simulamos inflación: montos por 2.5. El PSI del monto salta a 1.02, alerta. El del puntaje se queda en 0.02: el modelo no se desestabiliza porque compara cada monto con la media de la tarjeta. El panel distingue una alerta de entrada de un modelo roto.</aside>
+</section>
+
+<!-- =========================================================
+     15 · RECOMENDACIÓN AL COMITÉ
+     ========================================================= -->
+<section class="slide" aria-label="Recomendación">
+    <div class="frame">
+        <div class="folio"><span class="sec">Recomendación al comité</span><span>Mantener · vigilar · revertir</span></div>
+        <h2 class="reveal">Mantener el ensamble, <em>con A en sombra</em></h2>
+        <div class="body">
+            <div class="rules">
+                <div class="r reveal" style="--d:.1s"><div class="a c-dl">Mantener</div><div class="b">E decide · ahorra <b>≈ Q6 M / mes</b> · GRU en cada decisión</div></div>
+                <div class="r reveal" style="--d:.2s"><div class="a">Revisar</div><div class="b">cada semana · costo real de E vs. A en <span class="mono">/monitor</span></div></div>
+                <div class="r reveal" style="--d:.3s"><div class="a" style="color:var(--lgb)">Volver a A</div><div class="b">si con <b>≥ 200 fraudes</b> A sigue más barato · 1 línea del Dockerfile</div></div>
+                <div class="r reveal" style="--d:.4s"><div class="a c-block">Reentrenar</div><div class="b mono" style="font-size:27px">PSI puntaje &gt; 0.25 · bloqueo &gt; 3× · recall &lt; 90 %</div></div>
+            </div>
+            <div class="risks reveal" style="--d:.55s">
+                <span class="lbl" style="margin-right:10px">Riesgos que no escondemos</span>
+                <span class="chip">datos sintéticos</span><span class="chip">p95 &gt; 100 ms</span><span class="chip">registro efímero</span><span class="chip">sin autenticación</span><span class="chip">umbral optimista</span>
+            </div>
+        </div>
+    </div>
+    <div class="foot">Monitoreo transaccional · comité de modelos</div><div class="pg"></div>
+    <aside class="notes">Nuestra recomendación: mantener el ensamble con LightGBM en sombra. Revisar semanalmente; volver a A si con 200 fraudes etiquetados sigue siendo más barato; reentrenar si el PSI del puntaje pasa 0.25, el bloqueo se triplica o el recall cae de 90 %. Y estos son los riesgos que no escondemos.</aside>
+</section>
+
+<!-- =========================================================
+     16 · CIERRE
+     ========================================================= -->
+<section class="slide s-dark" aria-label="Preguntas">
+    <div class="title-wrap" style="top:250px">
+        <div class="kicker reveal">Gracias</div>
+        <h1 class="reveal" style="--d:.15s;font-size:170px">¿Preguntas?</h1>
+        <div class="reveal" style="--d:.3s;margin-top:70px;display:grid;grid-template-columns:200px 1fr;row-gap:22px;font:500 28px var(--f-mono)">
+            <span style="color:#8D8474">servicio</span><span>monitoreo-transaccional-837352528666.us-central1.run.app</span>
+            <span style="color:#8D8474">repositorio</span><span>github.com/andresm220/proyecto-final-dl</span>
+        </div>
+        <div class="meta reveal" style="--d:.45s;margin-top:80px">Andrés Mazariegos · June Herrera · Hansel López</div>
+    </div>
+    <aside class="notes">Preguntas. Temas probables: por qué promovimos E contra la regla, la evaluación en prueba, el p95, y los datos sintéticos.</aside>
+</section>
+
+</main>
+</div>
+
+<!-- Chrome fuera del escenario: progreso, notas, edición -->
+<div class="progress" id="progress"></div>
+<div class="notes-panel" id="notesPanel" aria-live="polite"></div>
+<div class="edit-hotzone" id="editHotzone"></div>
+<button class="edit-toggle" id="editToggle" title="Editar (E) · guardar (Ctrl+S)">EDITAR</button>
+
+<script>
+/* ===========================================
+   CONTROLADOR DE LA PRESENTACIÓN
+   Flechas / espacio / PgUp-PgDn / Inicio-Fin, rueda, deslizar.
+   N = notas del presentador · E = edición · #3 en la URL salta a la 3.
+   =========================================== */
+class SlidePresentation {
+    constructor() {
+        this.slides = [...document.querySelectorAll('.slide')];
+        this.stage = document.getElementById('deckStage');
+        this.progress = document.getElementById('progress');
+        this.notes = document.getElementById('notesPanel');
+        this.current = 0;
+        const n = this.slides.length;
+        this.slides.forEach((s, i) => {
+            const pg = s.querySelector('.pg');
+            if (pg) pg.textContent = String(i + 1).padStart(2, '0') + ' / ' + String(n).padStart(2, '0');
+        });
+        this.setupScale();
+        this.setupNav();
+        const start = parseInt(location.hash.slice(1), 10);
+        this.show(Number.isFinite(start) ? start - 1 : 0);
+    }
+
+    setupScale() {
+        const scale = () => {
+            const f = Math.min(innerWidth / 1920, innerHeight / 1080);
+            this.stage.style.transform =
+                `translate(${(innerWidth - 1920 * f) / 2}px, ${(innerHeight - 1080 * f) / 2}px) scale(${f})`;
+        };
+        scale();
+        addEventListener('resize', scale);
+    }
+
+    setupNav() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable) return;
+            if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); this.show(this.current + 1); }
+            if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); this.show(this.current - 1); }
+            if (e.key === 'Home') this.show(0);
+            if (e.key === 'End') this.show(this.slides.length - 1);
+            if (e.key === 'n' || e.key === 'N') this.notes.classList.toggle('open');
+        });
+        let lock = false;
+        addEventListener('wheel', (e) => {
+            if (lock || Math.abs(e.deltaY) < 30) return;
+            lock = true;
+            this.show(this.current + (e.deltaY > 0 ? 1 : -1));
+            setTimeout(() => (lock = false), 700);
+        }, { passive: true });
+        let x0 = null;
+        addEventListener('touchstart', (e) => (x0 = e.touches[0].clientX), { passive: true });
+        addEventListener('touchend', (e) => {
+            if (x0 === null) return;
+            const dx = e.changedTouches[0].clientX - x0;
+            if (Math.abs(dx) > 50) this.show(this.current + (dx < 0 ? 1 : -1));
+            x0 = null;
+        });
+    }
+
+    show(i) {
+        this.current = Math.max(0, Math.min(i, this.slides.length - 1));
+        this.slides.forEach((s, k) => {
+            s.classList.toggle('active', k === this.current);
+            s.classList.toggle('visible', k === this.current);
+        });
+        this.progress.style.width = ((this.current + 1) / this.slides.length * 100) + '%';
+        const note = this.slides[this.current].querySelector('.notes');
+        this.notes.textContent = (this.current + 1) + ' · ' + (note ? note.textContent : '');
+        history.replaceState(null, '', '#' + (this.current + 1));
+    }
+}
+const deck = new SlidePresentation();
+
+/* ===========================================
+   EDICIÓN EN LÍNEA
+   E o la esquina superior izquierda activan la edición de textos.
+   Ctrl+S descarga el HTML editado.
+   =========================================== */
+const editor = {
+    isActive: false,
+    toggleEditMode() {
+        this.isActive = !this.isActive;
+        document.body.classList.toggle('editing', this.isActive);
+        document.getElementById('editToggle').classList.toggle('active', this.isActive);
+        document.querySelectorAll('.slide h1, .slide h2, .slide p, .slide .lbl, .slide .chip, .slide .k, .slide .b, .slide .box, .slide .item div, .slide .task')
+            .forEach((el) => el.setAttribute('contenteditable', this.isActive ? 'true' : 'false'));
+    },
+    save() {
+        document.querySelectorAll('[contenteditable]').forEach((el) => el.removeAttribute('contenteditable'));
+        const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        const a = Object.assign(document.createElement('a'), {
+            href: URL.createObjectURL(new Blob([html], { type: 'text/html' })),
+            download: 'presentacion_comite.html',
+        });
+        a.click();
+        if (this.isActive) { this.isActive = false; this.toggleEditMode(); }
+    },
+};
+const editToggle = document.getElementById('editToggle');
+const hotzone = document.getElementById('editHotzone');
+let hideTimeout = null;
+editToggle.addEventListener('click', () => editor.toggleEditMode());
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400);
+});
+editToggle.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+editToggle.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400);
+});
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'e' || e.key === 'E') && !e.target.isContentEditable) editor.toggleEditMode();
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); editor.save(); }
+});
+</script>
+</body>
+</html>
