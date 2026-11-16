@@ -310,7 +310,6 @@ svg .m { font-family: var(--f-mono); }
     --paper: #191612;
     color: #F1E9DA;
     background:
-        radial-gradient(ellipse 60% 70% at 85% 20%, rgba(155, 28, 46, 0.22), transparent 70%),
         repeating-linear-gradient(to bottom, transparent 0 53px, rgba(241, 233, 218, 0.045) 53px 54px),
         #191612;
 }
@@ -335,7 +334,7 @@ h1 em { font-style: italic; font-weight: 400; color: #E0626F; }
 .lede { font-size: 34px; color: #C9B99C; margin-top: 40px; }
 .team { display: flex; gap: 56px; margin-top: 110px; font-size: 32px; font-weight: 600; }
 .team b { font: 500 24px var(--f-mono); color: #C9B99C; margin-left: 10px; }
-.meta { margin-top: 22px; font: 500 21px var(--f-mono); color: #8D8474; letter-spacing: 0.06em; }
+.meta { margin-top: 22px; font: 500 21px var(--f-mono); color: #8D8474; letter-spacing: 0.02em; }
 
 /* Sello de goma: el giro vive en .stamp, la animación en .stamp-in */
 .stamp { position: absolute; right: 150px; top: 120px; transform: rotate(-9deg); }
@@ -348,7 +347,7 @@ h1 em { font-style: italic; font-weight: 400; color: #E0626F; }
     text-align: center;
     opacity: 0;
     transform: scale(1.7);
-    transition: opacity 0.25s ease 1.1s, transform 0.45s cubic-bezier(0.5, 1.6, 0.4, 1) 1.1s;
+    transition: opacity 0.25s ease 1.1s, transform 0.45s var(--ease) 1.1s;
 }
 .stamp-in small { display: block; font: 600 17px/1 var(--f-mono); letter-spacing: 0.16em; margin-top: 12px; }
 .slide.visible .stamp-in { opacity: 0.92; transform: none; }
